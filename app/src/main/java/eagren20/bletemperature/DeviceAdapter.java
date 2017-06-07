@@ -19,24 +19,31 @@ import java.util.List;
  * Created by eagre on 6/5/2017.
  */
 
-public class DeviceAdapter extends ArrayAdapter<BluetoothDevice> {
+public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
 
 
-    ArrayList<BluetoothDevice> device_list;
+    ArrayList<BLE_Device> device_list;
+    ArrayList<String> addresses;
     Context context;
     int resourceId;
 
-    public DeviceAdapter(@NonNull Context context, @LayoutRes int resource, @NonNull ArrayList<BluetoothDevice> objects) {
+    public DeviceAdapter(@NonNull Context context, @LayoutRes int resource, @NonNull ArrayList<BLE_Device> objects) {
         super(context, resource, objects);
         this.context = context;
         resourceId = resource;
         device_list = objects;
+        addresses = new ArrayList<>();
     }
 
-    public void addDevice(BluetoothDevice device){
-
-        if(!device_list.contains(device)) {
-            device_list.add(device);
+    public void addDevice(BluetoothDevice device, int rssi){
+        BLE_Device new_device = new BLE_Device(device, rssi);
+        String address = new_device.getAddress();
+        if(!addresses.contains(address)) {
+            device_list.add(new_device);
+            addresses.add(address);
+        }
+        else{
+            device_list.get(addresses.indexOf(address)).setRSSI(rssi);
         }
     }
 
@@ -49,13 +56,15 @@ public class DeviceAdapter extends ArrayAdapter<BluetoothDevice> {
             convertView = inflater.inflate(resourceId, parent, false);
         }
 
-        BluetoothDevice device = device_list.get(position);
+        BLE_Device device = device_list.get(position);
 
         TextView nameView = (TextView) convertView.findViewById(R.id.device_name);
         TextView addressView = (TextView) convertView.findViewById(R.id.address);
+        TextView rssiView = (TextView) convertView.findViewById(R.id.rssi);
 
         String name = device.getName();
         String address = device.getAddress();
+        int rssi = device.getRSSI();
 
         if (name != null && name.length() > 0) {
             nameView.setText(device.getName());
@@ -65,14 +74,29 @@ public class DeviceAdapter extends ArrayAdapter<BluetoothDevice> {
         }
 
         if (address != null && address.length() > 0) {
-            addressView.setText(device.getAddress());
+            addressView.setText("Address: "+ device.getAddress());
         }
         else {
             addressView.setText("Unknown Address");
+        }
+
+        if (rssi < -80){
+            rssiView.setText("Signal strength: Poor");
+        }
+        else if (rssi < -70){
+            rssiView.setText("Signal strength: Good");
+        }
+        else{
+            rssiView.setText("Signal strength: Excellent");
         }
 
 
         return convertView;
 
     }
+
+    public void newScan(){
+        addresses.clear();
+    }
+
 }
