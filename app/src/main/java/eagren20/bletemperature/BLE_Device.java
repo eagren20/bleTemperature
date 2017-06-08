@@ -10,10 +10,12 @@ public class BLE_Device {
 
     private BluetoothDevice device;
     private int rssi;
+    private boolean checked;
 
-    public BLE_Device(BluetoothDevice device, int rssi){
+    public BLE_Device(BluetoothDevice device, int rssi) {
         this.device = device;
         this.rssi = rssi;
+        checked = false;
     }
 
     public String getAddress() {
@@ -30,5 +32,13 @@ public class BLE_Device {
 
     public int getRSSI() {
         return rssi;
+    }
+
+    public boolean isChecked() {
+        return checked;
+    }
+
+    public void setChecked(boolean new_value) {
+            this.checked = new_value;
     }
 }

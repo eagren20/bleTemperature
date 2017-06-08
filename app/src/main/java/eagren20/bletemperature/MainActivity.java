@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -27,12 +28,14 @@ public class MainActivity extends AppCompatActivity {
     private Handler mHandler;
     private boolean scanning;
     private Button scan_button;
-    private TextView instructions;
+    private Button read_button;
     private ListView list;
     private TextView noneFound;
     private ProgressBar progress;
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
+
+    public static final String EXTRAS_CHECKED_ADDRESSES = "CHECKED_ADDRESSES";
 
 
     @Override
@@ -47,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
         scanning = false;
         mHandler = new Handler();
         scan_button = (Button) findViewById(R.id.scan_button);
-        instructions = (TextView) findViewById(R.id.checkInstructions);
+        read_button = (Button) findViewById(R.id.read_button);
         noneFound = (TextView) findViewById(R.id.noneFound);
         progress = (ProgressBar) findViewById(R.id.progressBar);
         progress.setIndeterminate(true);
@@ -92,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
             device_list.clear();
             adapter.newScan();
             adapter.notifyDataSetChanged();
-            instructions.setVisibility(View.GONE);
+            read_button.setVisibility(View.GONE);
             noneFound.setVisibility(View.GONE);
             progress.setVisibility(View.VISIBLE);
             scan_button.setText("Stop");
@@ -120,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
         device_list.clear();
         adapter.notifyDataSetChanged();
         progress.setVisibility(View.GONE);
-        instructions.setVisibility(View.GONE);
+        read_button.setVisibility(View.GONE);
     }
 
     @Override
@@ -141,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }, SCAN_PERIOD);
             scanning = true;
+            //TODO: probably use startLeScan(UUID[], ...) instead
             mBluetoothAdapter.startLeScan(mLeScanCallback);
         } else {
             scanning = false;
@@ -154,11 +158,34 @@ public class MainActivity extends AppCompatActivity {
         if (device_list.isEmpty()) {
             noneFound.setVisibility(View.VISIBLE);
         } else {
-            instructions.setVisibility(View.VISIBLE);
+            read_button.setVisibility(View.VISIBLE);
         }
         progress.setVisibility(View.GONE);
         scan_button.setText("Scan");
 
+    }
+
+    /**
+     * Called when the read_button is clicked
+     * @param view the calling view
+     */
+    public void readClick(View view){
+
+        //get the number of checked sensors
+        int numChecked = adapter.getNumberChecked();
+
+        //if no sensors have been checked, inform the user
+        if (numChecked == 0){
+            //toast
+            Toast.makeText(this, "No sensors have been selected", Toast.LENGTH_SHORT).show();
+        }
+        else{
+            Intent intent = new Intent(this, DataReadActivity.class);
+            Bundle bundle = new Bundle();
+            bundle.putStringArrayList(EXTRAS_CHECKED_ADDRESSES, adapter.getCheckedAddresses());
+            intent.putExtras(bundle);
+            startActivity(intent);
+        }
     }
 
     private BluetoothAdapter.LeScanCallback mLeScanCallback =

@@ -58,15 +58,16 @@
             android:layout_centerHorizontal="true"
             android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/checkInstructions"
+        <Button
+            android:id="@+id/read_button"
             android:layout_width="wrap_content"
             android:layout_height="35dp"
             android:layout_alignParentTop="true"
             android:layout_centerHorizontal="true"
             android:gravity="center"
-            android:text="Check all sensors you would like to read from"
-            android:textSize="20sp"
+            android:onClick="readClick"
+            android:text="Read from selected sensors"
+            android:textSize="14sp"
             android:visibility="gone" />
 
         <TextView

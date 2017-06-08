@@ -9,6 +9,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 
 import java.lang.reflect.Array;
@@ -83,20 +85,52 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
         if (rssi < -80){
             rssiView.setText("Signal strength: Poor");
         }
-        else if (rssi < -70){
+        else if (rssi < -67){
             rssiView.setText("Signal strength: Good");
         }
         else{
             rssiView.setText("Signal strength: Excellent");
         }
 
+        CheckBox checkbox = (CheckBox) convertView.findViewById(R.id.checkBox);
+        final int new_position = position;
+        checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                device_list.get(new_position).setChecked(isChecked);
+
+            }
+        });
 
         return convertView;
 
     }
 
     public void newScan(){
+
         addresses.clear();
+        device_list.clear();
+    }
+
+    public int getNumberChecked(){
+        int numChecked = 0;
+        for (BLE_Device device: device_list){
+            if (device.isChecked()){
+                numChecked++;
+            }
+        }
+        return numChecked;
+    }
+
+    public ArrayList<String> getCheckedAddresses(){
+        ArrayList<String> checked_addresses = new ArrayList<>();
+        for (BLE_Device device: device_list){
+            if (device.isChecked()){
+                checked_addresses.add(device.getAddress());
+            }
+        }
+        return checked_addresses;
     }
 
 }
