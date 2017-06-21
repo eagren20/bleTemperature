@@ -3,6 +3,7 @@ package eagren20.bletemperature;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.Intent;
@@ -124,6 +125,8 @@ public class MainActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
         progress.setVisibility(View.GONE);
         read_button.setVisibility(View.GONE);
+
+        DataReadActivity.close();
     }
 
     @Override
@@ -188,6 +191,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+
     private BluetoothAdapter.LeScanCallback mLeScanCallback =
             new BluetoothAdapter.LeScanCallback() {
                 @Override
@@ -208,5 +213,6 @@ public class MainActivity extends AppCompatActivity {
                     });
                 }
             };
+
 
 }

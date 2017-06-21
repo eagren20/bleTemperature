@@ -95,7 +95,7 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
         CheckBox checkbox = (CheckBox) convertView.findViewById(R.id.checkBox);
         final int new_position = position;
         checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            
+
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 device_list.get(new_position).setChecked(isChecked);
