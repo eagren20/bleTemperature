@@ -18,12 +18,16 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.UUID;
+import java.util.concurrent.Semaphore;
 
 public class DataReadActivity extends AppCompatActivity {
 
@@ -36,10 +40,20 @@ public class DataReadActivity extends AppCompatActivity {
     private BluetoothManager mBluetoothManager;
     private String[] dataArray;
     private BluetoothGatt[] gattArray;
+    private Semaphore[] semaphores;
 
     private static final int STATE_DISCONNECTED = 0;
     private static final int STATE_CONNECTING = 1;
     private static final int STATE_CONNECTED = 2;
+
+    static private Semaphore semaphore;
+
+    public int changeCount;
+    public int viewCount;
+
+    public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
+    public final static UUID INTERMEDIATE_TEMP_UUID = UUID.fromString("00002A1E-0000-1000-8000-00805f9b34fb");
+    private static final UUID CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         /**
@@ -55,19 +69,30 @@ public class DataReadActivity extends AppCompatActivity {
          */
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            super.onConnectionStateChange(gatt, status, newState);
+            //super.onConnectionStateChange(gatt, status, newState);
             int index = addresses.indexOf(gatt.getDevice().getAddress());
             if (status == BluetoothGatt.GATT_FAILURE){
                 Log.w(TAG, "GATT Connection Failed");
             }
             else {
                 if (newState == STATE_DISCONNECTED) {
+                    try {
+                        semaphores[index].acquire();
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, "Interrupted Exception, semaphore " + Integer.toString(index));
+                    }
                     dataArray[index] = "Disconnected";
                 } else {
+                    try {
+                        semaphores[index].acquire();
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, "Interrupted Exception, semaphore " + Integer.toString(index));
+                    }
                     dataArray[index] = "Connected: Waiting for data";
+                    adapter.notifyDataSetChanged();
                     gatt.discoverServices();
                 }
-                adapter.notifyDataSetChanged();
+
             }
         }
 
@@ -80,17 +105,20 @@ public class DataReadActivity extends AppCompatActivity {
          */
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            super.onServicesDiscovered(gatt, status);
+            //super.onServicesDiscovered(gatt, status);
+            int index = addresses.indexOf(gatt.getDevice().getAddress());
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                //turn on notifications for immediate temperature
-                BluetoothGattCharacteristic characteristic = gatt.getService().getCharacteristic();
+                //turn on notifications for intermediate temperature
+                BluetoothGattCharacteristic characteristic = gatt.getService(HT_SERVICE_UUID).
+                        getCharacteristic(INTERMEDIATE_TEMP_UUID);
 
-                mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
+                gatt.setCharacteristicNotification(characteristic, true);
 
-                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(
-                        UUID.fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
                 descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                mBluetoothGatt.writeDescriptor(descriptor);
+                gatt.writeDescriptor(descriptor);
+
+                Log.d(TAG, "notifications enabled for device #" + Integer.toString(index));
             } else {
                 Log.w(TAG, "onServicesDiscovered received: " + status);
             }
@@ -127,7 +155,7 @@ public class DataReadActivity extends AppCompatActivity {
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             super.onCharacteristicWrite(gatt, characteristic, status);
-            String address = gatt.getDevice().getAddress();
+            //String address = gatt.getDevice().getAddress();
         }
 
         /**
@@ -138,7 +166,18 @@ public class DataReadActivity extends AppCompatActivity {
          */
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            super.onCharacteristicChanged(gatt, characteristic);
+            //super.onCharacteristicChanged(gatt, characteristic);
+            changeCount++;
+            //update UI with newly received data
+            String newData = characteristic.getValue().toString();
+            int index = addresses.indexOf(gatt.getDevice().getAddress());
+            try {
+                semaphores[index].acquire();
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Interrupted Exception, semaphore " + Integer.toString(index));
+            }
+            dataArray[index] = newData;
+            adapter.notifyDataSetChanged();
         }
 
         /**
@@ -180,6 +219,35 @@ public class DataReadActivity extends AppCompatActivity {
         addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
         list = (ListView) findViewById(R.id.read_list);
         gattArray = new BluetoothGatt[addresses.size()];
+        semaphores = new Semaphore[addresses.size()];
+
+        viewCount = 0;
+        changeCount = 0;
+
+        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View view,
+                                    int position, long id) {
+                if (dataArray[position].equals("Disconnected")) {
+                    String address = addresses.get(position);
+                    Toast.makeText(getApplicationContext(), "item " + Integer.toString(position) +
+                            " clicked", Toast.LENGTH_SHORT).show();
+                    connect(address);
+                }
+            }
+        });
+
+        mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        if (mBluetoothManager == null) {
+            Log.e(TAG, "Unable to initialize BluetoothManager.");
+            return;
+        }
+
+        mBluetoothAdapter = mBluetoothManager.getAdapter();
+        if (mBluetoothAdapter == null) {
+            Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
+            return;
+        }
+
 
         adapter = new ReadAdapter(this, R.layout.read_row, addresses);
         list.setAdapter(adapter);
@@ -195,40 +263,36 @@ public class DataReadActivity extends AppCompatActivity {
 
     private void startConnection() {
         //initialize bluetoothgatts for each address
-
-        if (mBluetoothManager == null) {
-            mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-            if (mBluetoothManager == null) {
-                Log.e(TAG, "Unable to initialize BluetoothManager.");
-                return;
-            }
-        }
-        mBluetoothAdapter = mBluetoothManager.getAdapter();
-        if (mBluetoothAdapter == null) {
-            Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
-            return;
-        }
+        //called once, when the activity starts
 
         for (String address : addresses){
             if (mBluetoothAdapter == null || address == null) {
-                Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
+                Log.e(TAG, "BluetoothAdapter not initialized or unspecified address.");
                 return;
             }
-
-            final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-            if (device == null) {
-                Log.w(TAG, "Device not found.  Unable to connect.");
-                return;
-            }
-            // We want to directly connect to the device, so we are setting the autoConnect
-            // parameter to false.
-            BluetoothGatt mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
-            gattArray[addresses.indexOf(address)] = mBluetoothGatt;
-            Log.d(TAG, "Trying to create a new connection.");
+            // creates a semaphore for each ble device. decrements upon a data update
+            // and increments upon that upon that update being reflected in the UI
+            semaphores[addresses.indexOf(address)] = new Semaphore(1);
+            connect(address);
         }
 
 
     }
+
+    private void connect(String address){
+        final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+        if (device == null) {
+            Log.w(TAG, "Device not found.  Unable to connect.");
+            return;
+        }
+        // We want to directly connect to the device, so we are setting the autoConnect
+        // parameter to false.
+        BluetoothGatt mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
+        gattArray[addresses.indexOf(address)] = mBluetoothGatt;
+        Log.d(TAG, "Trying to create a new connection to address " + address);
+    }
+
+
 
     private String translateHex(String hex){
         String data = new String();
@@ -269,25 +333,28 @@ public class DataReadActivity extends AppCompatActivity {
             if (convertView == null) {
                 LayoutInflater inflater = LayoutInflater.from(getContext());
                 convertView = inflater.inflate(resourceId, parent, false);
+                String address = addresses.get(position);
+                TextView name = (TextView) convertView.findViewById(R.id.read_device_name);
+                name.setText("Address: " + address);
             }
 
-            String address = addresses.get(position);
-
             String data;
+            try {
+                semaphores[position].acquire();
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Interrupted Exception, semaphore " + Integer.toString(position));
+            }
             if (dataArray[position] == null){
                 data = "Disconnected";
             }
             else{
                 data = dataArray[position];
             }
-
             TextView temperature = (TextView) convertView.findViewById(R.id.temperature);
-            TextView name = (TextView) convertView.findViewById(R.id.read_device_name);
-
-
-            name.setText("Address: " + address);
             temperature.setText("Temperature: " + data);
+            semaphores[position].release();
 
+            viewCount++;
             return convertView;
         }
 
@@ -299,6 +366,30 @@ public class DataReadActivity extends AppCompatActivity {
             dataArray[position] = data;
             adapter.notifyDataSetChanged();
         }
+
+        /**
+         * This method decode temperature value received from Health Thermometer device First byte {0} of data is flag and first bit of flag shows unit information of temperature. if bit 0 has value 1
+         * then unit is Fahrenheit and Celsius otherwise Four bytes {1 to 4} after Flag bytes represent the temperature value in IEEE-11073 32-bit Float format
+         */
+//        private double decodeTemperature(byte[] data) throws Exception {
+//            double temperatureValue = 0.0;
+//            byte flag = data[0];
+//            byte exponential = data[4];
+//            short firstOctet = convertNegativeByteToPositiveShort(data[1]);
+//            short secondOctet = convertNegativeByteToPositiveShort(data[2]);
+//            short thirdOctet = convertNegativeByteToPositiveShort(data[3]);
+//            int mantissa = ((thirdOctet << SHIFT_LEFT_16BITS) | (secondOctet << SHIFT_LEFT_8BITS) | (firstOctet)) & HIDE_MSB_8BITS_OUT_OF_32BITS;
+//            mantissa = getTwosComplimentOfNegativeMantissa(mantissa);
+//            temperatureValue = (mantissa * Math.pow(10, exponential));
+//		/*
+//		 * Conversion of temperature unit from Fahrenheit to Celsius if unit is in Fahrenheit
+//		 * Celsius = (98.6*Fahrenheit -32) 5/9
+//		 */
+//            if ((flag & FIRST_BIT_MASK) != 0) {
+//                temperatureValue = (float) ((98.6 * temperatureValue - 32) * (5 / 9.0));
+//            }
+//            return temperatureValue;
+//        }
 
     }
 

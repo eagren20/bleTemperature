@@ -125,8 +125,6 @@ public class MainActivity extends AppCompatActivity {
         adapter.notifyDataSetChanged();
         progress.setVisibility(View.GONE);
         read_button.setVisibility(View.GONE);
-
-        DataReadActivity.close();
     }
 
     @Override
@@ -147,8 +145,9 @@ public class MainActivity extends AppCompatActivity {
                 }
             }, SCAN_PERIOD);
             scanning = true;
-            //TODO: probably use startLeScan(UUID[], ...) instead
+            //TODO: probably use startScan(UUID[], ...) instead
             mBluetoothAdapter.startLeScan(mLeScanCallback);
+
         } else {
             scanning = false;
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
