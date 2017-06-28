@@ -1,13 +1,23 @@
 package eagren20.bletemperature;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Handler;
+import android.os.ParcelUuid;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.ListViewCompat;
@@ -19,6 +29,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -34,10 +46,11 @@ public class MainActivity extends AppCompatActivity {
     private TextView noneFound;
     private ProgressBar progress;
     // Stops scanning after 10 seconds.
-    private static final long SCAN_PERIOD = 10000;
+//    private static final long SCAN_PERIOD = 10000;
+    private static final long SCAN_PERIOD = 10000000;
 
     public static final String EXTRAS_CHECKED_ADDRESSES = "CHECKED_ADDRESSES";
-
+    public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,11 +69,23 @@ public class MainActivity extends AppCompatActivity {
         progress = (ProgressBar) findViewById(R.id.progressBar);
         progress.setIndeterminate(true);
 
+        if (Build.VERSION.SDK_INT >= 23) {
+            int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+            if (permissionCheck != PackageManager.PERMISSION_GRANTED){
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)){
+                    Toast.makeText(this, "The permission to get BLE location data is required", Toast.LENGTH_SHORT).show();
+                }else{
+                    requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+                }
+            }else{
+                Toast.makeText(this, "Location permissions already granted", Toast.LENGTH_SHORT).show();
+            }
+        }
 
         // Initializes Bluetooth adapter.
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = bluetoothManager.getAdapter();
+            mBluetoothAdapter = bluetoothManager.getAdapter();
 
         // Ensures Bluetooth is available on the device and it is enabled. If not,
         // displays a dialog requesting user permission to enable Bluetooth.
@@ -140,16 +165,28 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     scanning = false;
+//                    mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
                     mBluetoothAdapter.stopLeScan(mLeScanCallback);
                     stopScan();
                 }
             }, SCAN_PERIOD);
             scanning = true;
             //TODO: probably use startScan(UUID[], ...) instead
+
+//            List<ScanFilter> filterList;
+//            filterList = new ArrayList<ScanFilter>();
+//            ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(HT_SERVICE_UUID)).build();
+//            filterList.add(filter);
+//
+//            ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
+
+
+//            mBluetoothAdapter.getBluetoothLeScanner().startScan(filterList, settings, mLeScanCallback);
             mBluetoothAdapter.startLeScan(mLeScanCallback);
 
         } else {
             scanning = false;
+//            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
             mBluetoothAdapter.stopLeScan(mLeScanCallback);
             this.stopScan();
         }
@@ -213,5 +250,26 @@ public class MainActivity extends AppCompatActivity {
                 }
             };
 
+//    private ScanCallback mLeScanCallback =
+//            new ScanCallback() {
+//                @Override
+//                public void onScanResult(int callbackType, ScanResult result) {
+//                    final int new_rssi = result.getRssi();
+//                    final BluetoothDevice new_device = result.getDevice();
+//                    runOnUiThread(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            // add to view
+//                            //TODO: add in check in UUIDs to make sure only temperature sensors are added
+//
+//                            if (new_rssi > -90) {
+//                                adapter.addDevice(new_device, new_rssi);
+//                                adapter.notifyDataSetChanged();
+//                            }
+//                        }
+//                    });
+//                }
+//            };
+//
 
 }
