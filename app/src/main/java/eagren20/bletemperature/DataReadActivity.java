@@ -200,7 +200,6 @@ public class DataReadActivity extends AppCompatActivity {
             changeCount++;
             //update UI with newly received data
             byte[] data = characteristic.getValue();
-            String test = data.toString();
             int index = addresses.indexOf(gatt.getDevice().getAddress());
             if (data != null && data.length > 0) {
 
