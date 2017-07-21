@@ -82,15 +82,17 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
             addressView.setText("Unknown Address");
         }
 
-        if (rssi < -80){
-            rssiView.setText("Signal strength: Poor");
-        }
-        else if (rssi < -67){
-            rssiView.setText("Signal strength: Good");
-        }
-        else{
-            rssiView.setText("Signal strength: Excellent");
-        }
+//        if (rssi < -80){
+//            rssiView.setText("Signal strength: Poor");
+//        }
+//        else if (rssi < -67){
+//            rssiView.setText("Signal strength: Good");
+//        }
+//        else{
+//            rssiView.setText("Signal strength: Excellent");
+//        }
+
+        rssiView.setText(Integer.toString(rssi));
 
         CheckBox checkbox = (CheckBox) convertView.findViewById(R.id.checkBox);
         final int new_position = position;

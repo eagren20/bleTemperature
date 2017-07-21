@@ -18,9 +18,8 @@ public class DBHelper extends SQLiteOpenHelper {
 
     public static final String TEMPERATURE_TABLE= "temperature";
     public static final String COLUMN_ID = "_id";
-    public static final String COLUMN_ONE = "sensor_one";
-    public static final String COLUMN_TWO = "sensor_two";
-    public static final String COLUMN_THREE = "sensor_three";
+    public static final String COLUMN_DEVICE = "device";
+    public static final String COLUMN_TEMPERATURE = "temperature";
 
     /**
      * Create a helper object to create, open, and/or manage a database.
@@ -50,9 +49,8 @@ public class DBHelper extends SQLiteOpenHelper {
         db.execSQL(
                 "CREATE TABLE " + TEMPERATURE_TABLE +
                         "(" + COLUMN_ID + " INTEGER PRIMARY KEY, " +
-                        COLUMN_ONE + " DECIMAL(3, 1), " +
-                        COLUMN_TWO + " DECIMAL(3, 1), " +
-                        COLUMN_THREE + " DECIMAL(3, 1))"
+                        COLUMN_DEVICE + " TEXT, " +
+                        COLUMN_TEMPERATURE + " DECIMAL(3, 1))"
         );
     }
 
@@ -82,13 +80,12 @@ public class DBHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public void addDataRow(float one, float two, float three){
+    public void addDataRow(String device, float data){
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
 
-        contentValues.put(COLUMN_ONE, one);
-        contentValues.put(COLUMN_TWO, two);
-        contentValues.put(COLUMN_THREE, three);
+        contentValues.put(COLUMN_DEVICE, device);
+        contentValues.put(COLUMN_TEMPERATURE, data);
 
         db.insert(TEMPERATURE_TABLE, null, contentValues);
     }
@@ -99,7 +96,7 @@ public class DBHelper extends SQLiteOpenHelper {
         return numRows;
     }
 
-    public Cursor getPerson(int id) {
+    public Cursor getRow(int id) {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor res =  db.rawQuery("SELECT * FROM " + TEMPERATURE_TABLE + " WHERE " +
                 COLUMN_ID + "=?", new String[]{Integer.toString(id)});

@@ -307,8 +307,12 @@ public class DataReadActivity extends AppCompatActivity {
         df = new DecimalFormat("#.#");
         df.setRoundingMode(RoundingMode.UP);
 
-        Bundle bundle = this.getIntent().getExtras();
-        addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
+//        Bundle bundle = this.getIntent().getExtras();
+//        addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
+
+        //test addresses
+
+
         list = (ListView) findViewById(R.id.read_list);
         dataArray = new String[addresses.size()];
         for (int i = 0; i < dataArray.length; i++){
