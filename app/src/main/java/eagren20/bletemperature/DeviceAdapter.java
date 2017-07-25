@@ -135,4 +135,14 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
         return checked_addresses;
     }
 
+    public String[] getCheckedNames(){
+        String[] checked_names = new String[device_list.size()];
+        for (BLE_Device device : device_list){
+            if (device.isChecked()){
+                checked_names[device_list.indexOf(device)] = device.getName();
+            }
+        }
+        return checked_names;
+    }
+
 }

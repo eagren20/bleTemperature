@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private static final long POST_PERIOD = 1100;
 
     public static final String EXTRAS_CHECKED_ADDRESSES = "CHECKED_ADDRESSES";
+    public static final String EXTRAS_DEVICE_NAMES = "DEVICE_NAMES";
     public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
 
     @Override
@@ -82,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
         filterList = new ArrayList<ScanFilter>();
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(HT_SERVICE_UUID)).build();
         filterList.add(filter);
+//        settings = new ScanSettings.Builder().setScanMode(
+//                ScanSettings.SCAN_MODE_BALANCED).build();
         settings = new ScanSettings.Builder().setScanMode(
                 ScanSettings.SCAN_MODE_BALANCED).build();
 
@@ -154,6 +157,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+//    public void scanClick(View view){
+//        Intent intent = new Intent(this, DataReadActivity.class);
+//        startActivity(intent);
+//    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -161,14 +169,16 @@ public class MainActivity extends AppCompatActivity {
         checkBT();
 
         scanner = mBluetoothAdapter.getBluetoothLeScanner();
-        device_list.clear();
-        adapter.notifyDataSetChanged();
         progress.setVisibility(View.GONE);
-        read_button.setVisibility(View.GONE);
+        scan_button.setEnabled(true);
+        read_button.setEnabled(true);
 
         scan_button.setText("Scan");
         scanning = false;
         btEnable = false;
+        //Register filter for bluetooth state changes
+        IntentFilter iFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        registerReceiver(mReceiver, iFilter);
     }
 
     @Override
@@ -177,61 +187,53 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(mReceiver);
     }
 
-//    private void scanLeDevice(final boolean enable) {
-//        if (enable) {
-//            // Stops scanning after a pre-defined scan period.
-//
-//            mHandler.postDelayed(new Runnable() {
-//                @Override
-//                public void run() {
-//                    scanning = false;
-//                    mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
-////                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
-//                    stopScan();
-//                }
-//            }, SCAN_PERIOD);
-//            scanning = true;
-//            //TODO: probably use startScan(UUID[], ...) instead
-//
-//            List<ScanFilter> filterList = new ArrayList<ScanFilter>();
-////            ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(HT_SERVICE_UUID)).build();
-////            filterList.add(filter);
-//
-//            ScanSettings settings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
-//
-//
-//            mBluetoothAdapter.getBluetoothLeScanner().startScan(filterList, settings, mLeScanCallback);
-////            mBluetoothAdapter.startLeScan(mLeScanCallback);
-//
-//        } else {
-//            scanning = false;
-//            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
-////            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-//            this.stopScan();
-//        }
-//
-//    }
-
     private void scanLeDevice(final boolean enable) {
         if (enable) {
-            scanning = true;
-            scanner.startScan(filterList, settings, mLeScanCallback);
-            scanPost();
+            // Stops scanning after a pre-defined scan period.
+
             mHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    //Stop scanning after 10 seconds
-                    scanLeDevice(false);
+                    scanning = false;
+                    mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
+//                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                    stopScan();
                 }
             }, SCAN_PERIOD);
+            scanning = true;
+
+            mBluetoothAdapter.getBluetoothLeScanner().startScan(filterList, settings, mLeScanCallback);
+//            mBluetoothAdapter.startLeScan(mLeScanCallback);
+
         } else {
             scanning = false;
-            scanner.stopScan(mLeScanCallback);
-            mHandler.removeCallbacksAndMessages(null);
+            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
 //            mBluetoothAdapter.stopLeScan(mLeScanCallback);
             this.stopScan();
         }
+
     }
+
+//    private void scanLeDevice(final boolean enable) {
+//        if (enable) {
+//            scanning = true;
+//            scanner.startScan(filterList, settings, mLeScanCallback);
+//            scanPost();
+//            mHandler.postDelayed(new Runnable() {
+//                @Override
+//                public void run() {
+//                    //Stop scanning after 10 seconds
+//                    scanLeDevice(false);
+//                }
+//            }, SCAN_PERIOD);
+//        } else {
+//            scanning = false;
+//            scanner.stopScan(mLeScanCallback);
+//            mHandler.removeCallbacksAndMessages(null);
+////            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+//            this.stopScan();
+//        }
+//    }
 
     private void scanPost(){
         mHandler.postDelayed(new Runnable() {
@@ -279,6 +281,8 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, DataReadActivity.class);
             Bundle bundle = new Bundle();
             bundle.putStringArrayList(EXTRAS_CHECKED_ADDRESSES, adapter.getCheckedAddresses());
+            bundle.putStringArray(EXTRAS_DEVICE_NAMES, adapter.getCheckedNames());
+
             intent.putExtras(bundle);
             startActivity(intent);
         }
@@ -332,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-
+            //TODO: fix this garbo
             if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                         BluetoothAdapter.ERROR);
