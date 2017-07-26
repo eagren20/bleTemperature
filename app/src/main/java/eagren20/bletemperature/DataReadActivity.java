@@ -52,7 +52,7 @@ public class DataReadActivity extends AppCompatActivity {
     private String[] deviceNames;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothManager mBluetoothManager;
-    private Float[] dataArray;
+    private float[] dataArray;
     private BluetoothGatt[] gattArray;
     private BluetoothDevice[] deviceArray;
     private DBHelper database;
@@ -210,22 +210,13 @@ public class DataReadActivity extends AppCompatActivity {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             //super.onCharacteristicChanged(gatt, characteristic);
-            changeCount++;
             //update UI with newly received data
-            byte[] data = characteristic.getValue();
             int index = addresses.indexOf(gatt.getDevice().getAddress());
-            if (data != null && data.length > 0) {
-
                 Message msg = Message.obtain(handler);
                 msg.obj = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT,1);
                 msg.what = 0;
                 msg.arg1 = index;
                 msg.sendToTarget();
-            }
-            else{
-                Log.w(TAG, "null data received from device #" + Integer.toString(index));
-            }
-
         }
 
         /**
@@ -264,22 +255,28 @@ public class DataReadActivity extends AppCompatActivity {
         @Override
         public void handleMessage(Message msg) {
             final int what = msg.what;
-            final Float value = (Float) msg.obj;
-            switch(what) {
-                case UPDATE_DATA: updateData(value, msg.arg1); break;
-                case SEND_DATA: updateConnection(value, msg.arg1); break;
+            if (msg.obj != null){
+                final float value = (float) msg.obj;
+                switch(what) {
+                    case UPDATE_DATA: updateData(value, msg.arg1); break;
+                    case SEND_DATA: updateConnection(value, msg.arg1); break;
+                }
             }
+            else{
+                Log.e(TAG, "device " + deviceNames[msg.arg1] +" sent a null value");
+            }
+
         }
     };
 
-    private void updateData(Float data, int index){
+    private void updateData(float data, int index){
         dataArray[index] = data;
         adapter.notifyDataSetChanged();
         // add data to DB
         database.addDataRow(deviceNames[index], data);
     }
 
-    private void updateConnection(Float connectionStatus, int index){
+    private void updateConnection(float connectionStatus, int index){
         dataArray[index] = connectionStatus;
         adapter.notifyDataSetChanged();
     }
@@ -296,8 +293,8 @@ public class DataReadActivity extends AppCompatActivity {
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        Toolbar mToolBar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(mToolBar);
+//        Toolbar mToolBar = (Toolbar) findViewById(R.id.toolbar);
+//        setSupportActionBar(mToolBar);
 
         addresses = new ArrayList<>();
 
@@ -307,17 +304,18 @@ public class DataReadActivity extends AppCompatActivity {
         df = new DecimalFormat("#.#");
         df.setRoundingMode(RoundingMode.UP);
 
-        Bundle bundle = this.getIntent().getExtras();
-        addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
-        deviceNames = bundle.getStringArray(MainActivity.EXTRAS_DEVICE_NAMES);
+//        Bundle bundle = this.getIntent().getExtras();
+//        addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
+//        deviceNames = bundle.getStringArray(MainActivity.EXTRAS_DEVICE_NAMES);
+
+
+        //test addresses
+//        addresses.add("A0:E6:F8:4C:2B:53");
+        addresses.add("A0:E6:F8:4C:2B:63");
+        addresses.add("A0:E6:F8:53:DD:75"); //best
 
         int size = addresses.size();
         deviceNames = new String[size];
-        //test addresses
-//        addresses.add("A0:E6:F8:4C:2B:53");
-//        addresses.add("A0:E6:F8:4C:2B:63");
-//        addresses.add("A0:E6:F8:53:DD:75"); //best
-//
 //        deviceNames[0] = "sensor_63";
 //        deviceNames[1] = "sensor_75";
 
@@ -326,13 +324,10 @@ public class DataReadActivity extends AppCompatActivity {
         registerReceiver(mReceiver, iFilter);
 
         list = (ListView) findViewById(R.id.read_list);
-        dataArray = new Float[addresses.size()];
+        dataArray = new float[size];
         gattArray = new BluetoothGatt[size];
         deviceArray = new BluetoothDevice[size];
 //        semaphores = new Semaphore[addresses.size()];
-
-        viewCount = 0;
-        changeCount = 0;
 
 
 //        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -366,18 +361,18 @@ public class DataReadActivity extends AppCompatActivity {
         this.startConnection();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater mMenuInflater = getMenuInflater();
-        mMenuInflater.inflate(R.menu.data_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-
-        return super.onOptionsItemSelected(item);
-    }
+//    @Override
+//    public boolean onCreateOptionsMenu(Menu menu) {
+//        MenuInflater mMenuInflater = getMenuInflater();
+//        mMenuInflater.inflate(R.menu.data_menu, menu);
+//        return true;
+//    }
+//
+//    @Override
+//    public boolean onOptionsItemSelected(MenuItem item) {
+//
+//        return super.onOptionsItemSelected(item);
+//    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -515,7 +510,7 @@ public class DataReadActivity extends AppCompatActivity {
 
 
 
-        public void addData(String address, Float data){
+        public void addData(String address, float data){
 
             int position = addresses.indexOf(address);
             dataArray[position] = data;
