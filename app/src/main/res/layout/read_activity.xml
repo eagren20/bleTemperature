@@ -7,21 +7,22 @@
     tools:context="eagren20.bletemperature.DataReadActivity">
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/read_header"
         android:layout_width="wrap_content"
         android:layout_height="0dp"
+        android:layout_marginEnd="16dp"
         android:layout_marginLeft="16dp"
         android:layout_marginRight="16dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:gravity="center"
-        android:text="Temperature readings:"
-        android:textSize="20sp"
+        android:text="Connecting to all devices..."
+        android:textSize="23sp"
         android:textStyle="bold"
+        app:layout_constraintHorizontal_bias="0.505"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        app:layout_constraintHorizontal_bias="0.503"/>
+        app:layout_constraintTop_toTopOf="parent" />
         <!--app:layout_constraintTop_toBottomOf="@+id/toolbar" />-->
 
     <ListView
@@ -36,7 +37,7 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView"
+        app:layout_constraintTop_toBottomOf="@+id/read_header"
         app:layout_constraintVertical_bias="1.0"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp" />

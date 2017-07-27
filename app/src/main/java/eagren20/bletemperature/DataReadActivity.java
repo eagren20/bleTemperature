@@ -20,7 +20,6 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -28,18 +27,15 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.lang.reflect.Array;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.UUID;
-import java.util.concurrent.Semaphore;
 
 public class DataReadActivity extends AppCompatActivity {
 
@@ -64,6 +60,8 @@ public class DataReadActivity extends AppCompatActivity {
     private static final int STATE_CONNECTING = 1;
     private static final int STATE_CONNECTED = 2;
     private static final int REQUEST_ENABLE_BT = 1;
+
+    private static final long CHECK_PERIOD = 1000;
 
     private final static int HIDE_MSB_8BITS_OUT_OF_32BITS = 0x00FFFFFF;
     private final static int HIDE_MSB_8BITS_OUT_OF_16BITS = 0x00FF;
@@ -109,14 +107,6 @@ public class DataReadActivity extends AppCompatActivity {
                     msg.what = 1;
                     msg.sendToTarget();
 
-//                    dataArray[index] = "Disconnected";
-//                    list.post(new Runnable() {
-//
-//                        @Override
-//                        public void run() {
-//                            adapter.notifyDataSetChanged();
-//                        }
-//                    });
                 } else {
                     Message msg = Message.obtain(handler);
                     msg.obj = DEVICE_CONNECTED;
@@ -124,16 +114,7 @@ public class DataReadActivity extends AppCompatActivity {
                     msg.what = 1;
                     msg.sendToTarget();
 
-//                    dataArray[index] = "Connected: Waiting for data";
-//                    list.post(new Runnable() {
-//
-//                        @Override
-//                        public void run() {
-//                            adapter.notifyDataSetChanged();
-//                        }
-//                    });
-
-                    gatt.discoverServices();
+//                    gatt.discoverServices();
                 }
 
             }
@@ -325,22 +306,12 @@ public class DataReadActivity extends AppCompatActivity {
 
         list = (ListView) findViewById(R.id.read_list);
         dataArray = new float[size];
+        for (int i = 0; i < dataArray.length; i++){
+            dataArray[i] = DEVICE_DISCONNECTED;
+        }
         gattArray = new BluetoothGatt[size];
         deviceArray = new BluetoothDevice[size];
 //        semaphores = new Semaphore[addresses.size()];
-
-
-//        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-//            public void onItemClick(AdapterView<?> parent, View view,
-//                                    int position, long id) {
-//                if (dataArray[position].equals("Disconnected")) {
-//                    String address = addresses.get(position);
-//                    Toast.makeText(getApplicationContext(), "item " + Integer.toString(position) +
-//                            " clicked", Toast.LENGTH_SHORT).show();
-//                    connect(address);
-//                }
-//            }
-//        });
 
         mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         if (mBluetoothManager == null) {
@@ -361,18 +332,26 @@ public class DataReadActivity extends AppCompatActivity {
         this.startConnection();
     }
 
-//    @Override
-//    public boolean onCreateOptionsMenu(Menu menu) {
-//        MenuInflater mMenuInflater = getMenuInflater();
-//        mMenuInflater.inflate(R.menu.data_menu, menu);
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean onOptionsItemSelected(MenuItem item) {
-//
-//        return super.onOptionsItemSelected(item);
-//    }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.read_menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_data) {
+            Intent intent = new Intent(this, DatabaseActivity.class);
+            startActivity(intent);
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -386,9 +365,12 @@ public class DataReadActivity extends AppCompatActivity {
 
     @Override
     protected void onStop() {
-        super.onStop();
+        for (int i = 0; i < dataArray.length; i++){
+            dataArray[i] = DEVICE_DISCONNECTED;
+        }
         unregisterReceiver(mReceiver);
         close();
+        super.onStop();
     }
 
     private void startConnection() {
@@ -400,12 +382,15 @@ public class DataReadActivity extends AppCompatActivity {
                 Log.e(TAG, "BluetoothAdapter not initialized or unspecified address.");
                 return;
             }
-            // creates a semaphore for each ble device. decrements upon a data update
-            // and increments upon that upon that update being reflected in the UI
-//            semaphores[addresses.indexOf(address)] = new Semaphore(1);
             connect(address);
         }
 
+        handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    checkConnections();
+                }
+            }, CHECK_PERIOD);
 
     }
 
@@ -427,28 +412,55 @@ public class DataReadActivity extends AppCompatActivity {
 
     public void reconnect(View v){
 
-        // Ensures Bluetooth is available on the device and it is enabled. If not,
-        // displays a dialog requesting user permission to enable Bluetooth.
-        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
+//        // Ensures Bluetooth is available on the device and it is enabled. If not,
+//        // displays a dialog requesting user permission to enable Bluetooth.
+//        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
+//            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+//            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+//        }
+//
+//        Toast.makeText(getApplicationContext(), "Reconnecting", Toast.LENGTH_SHORT).show();
+//        handler.removeCallbacksAndMessages(null);
+//
+//        for (BluetoothGatt gatt : gattArray){
+//            gatt.disconnect();
+//        }
+//        startConnection();
 
-        Toast.makeText(getApplicationContext(), "Reconnecting", Toast.LENGTH_SHORT).show();
-        for (int i = 0; i < gattArray.length; i++) {
-            if (dataArray[i] == STATE_DISCONNECTED) {
+        this.recreate();
+
+    }
+
+    private void checkConnections(){
+        Toast.makeText(getApplicationContext(), "Verifying connections...", Toast.LENGTH_SHORT).show();
+        boolean all_connected = true;
+        for (int i = 0; i < dataArray.length; i++){
+            if (dataArray[i] == DEVICE_DISCONNECTED){
                 deviceArray[i].connectGatt(this, true, mGattCallback);
-                Log.d(TAG, "Trying to create a new connection to address " +
-                        deviceArray[i].getAddress());
+                all_connected = false;
             }
         }
 
+        Runnable r = new Runnable(){
+            @Override
+            public void run() {
+                checkConnections();
+            }
+        };
 
+        if (all_connected){
+            handler.removeCallbacks(r);
+            TextView header = (TextView) findViewById(R.id.read_header);
+            header.setText("Temperature readings: ");
+            for (BluetoothGatt gatt : gattArray){
+                gatt.discoverServices();
+            }
+        }
+        else{
+            handler.postDelayed(r, CHECK_PERIOD);
+        }
     }
 
-    private void beginReading(){
-
-    }
 
     public void close(){
         for (BluetoothGatt gatt : gattArray){
@@ -495,11 +507,11 @@ public class DataReadActivity extends AppCompatActivity {
             String data;
             TextView temperature = (TextView) convertView.findViewById(R.id.temperature);
             final float currentData = dataArray[position];
-            if (currentData == 0.0f || currentData == DEVICE_DISCONNECTED){
+            if (currentData == DEVICE_DISCONNECTED){
                 temperature.setText("Disconnected");
             }
             else if (currentData == DEVICE_CONNECTED){
-                temperature.setText("Connected: Waiting for data");
+                temperature.setText("Connected: Waiting...");
             }
             else{
                 data = Float.toString(dataArray[position]);

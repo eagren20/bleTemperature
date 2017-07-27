@@ -25,9 +25,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!--<activity android:name=".DataReadActivity"-->
-            <!--android:theme="@style/Theme">-->
-        <!--</activity>-->
+        <activity android:name=".DataReadActivity"/>
+        <activity android:name=".DatabaseActivity"/>
     </application>
 
 

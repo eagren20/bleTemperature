@@ -113,5 +113,32 @@ public class DBHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase(); // helper is object extends SQLiteOpenHelper
         db.delete(TEMPERATURE_TABLE, null, null);
     }
+
+    public String databaseToString(){
+        String dbString = "";
+        SQLiteDatabase db = getWritableDatabase();
+        String query = "SELECT * FROM " + TEMPERATURE_TABLE+ " WHERE 1";// why not leave out the WHERE  clause?
+
+        //Cursor points to a location in your results
+        Cursor c = db.rawQuery(query, null);
+        //Move to the first row in your results
+        c.moveToFirst();
+
+        //Position after the last row means the end of the results
+        while (!c.isAfterLast()) {
+            // null could happen if we used our empty constructor
+            if (c.getString(c.getColumnIndex(COLUMN_DEVICE)) != null &&
+                    c.getString(c.getColumnIndex(COLUMN_TEMPERATURE)) != null) {
+                dbString += c.getString(c.getColumnIndex(COLUMN_DEVICE));
+                dbString += ": ";
+//                dbString += Float.toString(c.getFloat(c.getColumnIndex(COLUMN_TEMPERATURE)));
+                dbString += c.getString(c.getColumnIndex(COLUMN_TEMPERATURE));
+                dbString += "\n";
+            }
+            c.moveToNext();
+        }
+        db.close();
+        return dbString;
+    }
 }
 
