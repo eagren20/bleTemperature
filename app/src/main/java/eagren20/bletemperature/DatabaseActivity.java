@@ -24,16 +24,8 @@ public class DatabaseActivity extends AppCompatActivity {
         setContentView(R.layout.database_activity);
 
         //print db contents
-        database = new DBHelper(this, null, null, 1);
-        TextView contents = (TextView) findViewById(R.id.db_contents);
-        TextView header = (TextView) findViewById(R.id.db_header);
-        String dbString = database.databaseToString();
-        if (dbString.equals("")){
-            header.setText("Database is empty");
-        }
-        else{
-            contents.setText(dbString);
-        }
+        database = new DBHelper(this);
+        printDB();
     }
 
     @Override
@@ -48,7 +40,22 @@ public class DatabaseActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.action_delete) {
             //delete all database entries
+            database.removeAll();
+            printDB();
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void printDB(){
+        TextView contents = (TextView) findViewById(R.id.db_contents);
+        TextView header = (TextView) findViewById(R.id.db_header);
+        String dbString = database.databaseToString();
+        if (dbString.equals("")){
+            header.setText("Database is empty");
+            contents.setText("");
+        }
+        else{
+            contents.setText(dbString);
+        }
     }
 }

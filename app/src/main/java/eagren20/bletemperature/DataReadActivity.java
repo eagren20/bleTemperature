@@ -46,13 +46,14 @@ public class DataReadActivity extends AppCompatActivity {
     private ReadAdapter adapter;
     private ArrayList<String> addresses;
     private String[] deviceNames;
+    private int[] servicesArray;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothManager mBluetoothManager;
     private float[] dataArray;
     private BluetoothGatt[] gattArray;
     private BluetoothDevice[] deviceArray;
     private DBHelper database;
-//    private Semaphore[] semaphores;
+    private TextView header;
 
     private static final float DEVICE_DISCONNECTED = -1.00f;
     private static final float DEVICE_CONNECTED = -2.00f;
@@ -69,11 +70,6 @@ public class DataReadActivity extends AppCompatActivity {
     private final static int SHIFT_LEFT_16BITS = 16;
     private final static int GET_BIT24 = 0x00400000;
     private final static int FIRST_BIT_MASK = 0x01;
-
-//    static private Semaphore semaphore;
-
-    public int changeCount;
-    public int viewCount;
 
     public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
     public final static UUID INTERMEDIATE_TEMP_UUID = UUID.fromString("00002A1E-0000-1000-8000-00805f9b34fb");
@@ -95,6 +91,7 @@ public class DataReadActivity extends AppCompatActivity {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             //super.onConnectionStateChange(gatt, status, newState);
             int index = addresses.indexOf(gatt.getDevice().getAddress());
+            gattArray[index] = gatt;
             if (status == BluetoothGatt.GATT_FAILURE){
                 Log.w(TAG, "GATT Connection Failed");
             }
@@ -131,18 +128,10 @@ public class DataReadActivity extends AppCompatActivity {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             //super.onServicesDiscovered(gatt, status);
             int index = addresses.indexOf(gatt.getDevice().getAddress());
+
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                //turn on notifications for intermediate temperature
-                BluetoothGattCharacteristic characteristic = gatt.getService(HT_SERVICE_UUID).
-                        getCharacteristic(INTERMEDIATE_TEMP_UUID);
-
-                gatt.setCharacteristicNotification(characteristic, true);
-
-                BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
-                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-                gatt.writeDescriptor(descriptor);
-
-                Log.d(TAG, "notifications enabled for device #" + Integer.toString(index));
+                gattArray[index] = gatt;
+                servicesArray[index] = 1;
             } else {
                 Log.w(TAG, "onServicesDiscovered received: " + status);
             }
@@ -280,7 +269,7 @@ public class DataReadActivity extends AppCompatActivity {
         addresses = new ArrayList<>();
 
 
-        database = new DBHelper(this, null, null, 1);
+        database = new DBHelper(this);
 
         df = new DecimalFormat("#.#");
         df.setRoundingMode(RoundingMode.UP);
@@ -311,6 +300,7 @@ public class DataReadActivity extends AppCompatActivity {
         }
         gattArray = new BluetoothGatt[size];
         deviceArray = new BluetoothDevice[size];
+        servicesArray = new int[size];
 //        semaphores = new Semaphore[addresses.size()];
 
         mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -325,7 +315,7 @@ public class DataReadActivity extends AppCompatActivity {
             return;
         }
 
-
+        header = (TextView) findViewById(R.id.read_header);
         adapter = new ReadAdapter(this, R.layout.read_row, addresses);
         list.setAdapter(adapter);
         adapter.notifyDataSetChanged();
@@ -441,7 +431,7 @@ public class DataReadActivity extends AppCompatActivity {
             }
         }
 
-        Runnable r = new Runnable(){
+        final Runnable r = new Runnable(){
             @Override
             public void run() {
                 checkConnections();
@@ -450,16 +440,59 @@ public class DataReadActivity extends AppCompatActivity {
 
         if (all_connected){
             handler.removeCallbacks(r);
-            TextView header = (TextView) findViewById(R.id.read_header);
-            header.setText("Temperature readings: ");
-            for (BluetoothGatt gatt : gattArray){
-                gatt.discoverServices();
-            }
+            header.setText("Discovering Services...");
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                        checkServicesDiscovered();
+                    }
+
+            }, 690);
+
         }
         else{
             handler.postDelayed(r, CHECK_PERIOD);
         }
     }
+
+    private void checkServicesDiscovered(){
+        Toast.makeText(getApplicationContext(), "Discovering services...", Toast.LENGTH_SHORT).show();
+        boolean allServicesDiscovered = true;
+        for (int i = 0; i < servicesArray.length; i++) {
+            if (servicesArray[i] == 0) {
+                allServicesDiscovered = false;
+                gattArray[i].discoverServices();
+            }
+        }
+        if (allServicesDiscovered){
+            enableNotifications();
+        }
+        else {
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    checkServicesDiscovered();
+                }
+            }, 1100);
+        }
+    }
+
+    private void enableNotifications(){
+        for (BluetoothGatt gatt : gattArray){
+            //turn on notifications for intermediate temperature
+            BluetoothGattCharacteristic characteristic = gatt.getService(HT_SERVICE_UUID).
+                    getCharacteristic(INTERMEDIATE_TEMP_UUID);
+
+            gatt.setCharacteristicNotification(characteristic, true);
+
+            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG);
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            gatt.writeDescriptor(descriptor);
+
+        }
+        header.setText("Temperature readings:");
+    }
+
 
 
     public void close(){
