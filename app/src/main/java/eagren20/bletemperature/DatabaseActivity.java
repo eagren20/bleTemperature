@@ -16,15 +16,19 @@ import android.widget.TextView;
 
 public class DatabaseActivity extends AppCompatActivity {
 
-    DBHelper database;
+    private DBHelper database;
+    private int numDevices;
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.database_activity);
 
-        //print db contents
         database = new DBHelper(this);
+        //print db contents
+        Bundle bundle = this.getIntent().getExtras();
+        numDevices = bundle.getInt(DataReadActivity.EXTRAS_DATABASE_STRING);
         printDB();
     }
 
@@ -40,6 +44,7 @@ public class DatabaseActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.action_delete) {
             //delete all database entries
+
             database.removeAll();
             printDB();
         }
@@ -49,7 +54,7 @@ public class DatabaseActivity extends AppCompatActivity {
     private void printDB(){
         TextView contents = (TextView) findViewById(R.id.db_contents);
         TextView header = (TextView) findViewById(R.id.db_header);
-        String dbString = database.databaseToString();
+        String dbString = database.databaseToString(numDevices);
         if (dbString.equals("")){
             header.setText("Database is empty");
             contents.setText("");

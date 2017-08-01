@@ -110,7 +110,7 @@ public class DBHelper extends SQLiteOpenHelper {
         db.delete(TEMPERATURE_TABLE, null, null);
     }
 
-    public String databaseToString(){
+    public String databaseToString(int numDevices){
         String dbString = "";
         SQLiteDatabase db = getWritableDatabase();
         String query = "SELECT * FROM " + TEMPERATURE_TABLE+ " WHERE 1";// why not leave out the WHERE  clause?
@@ -120,6 +120,7 @@ public class DBHelper extends SQLiteOpenHelper {
         //Move to the first row in your results
         c.moveToFirst();
 
+        int i = 0;
         //Position after the last row means the end of the results
         while (!c.isAfterLast()) {
             // null could happen if we used our empty constructor
@@ -130,6 +131,11 @@ public class DBHelper extends SQLiteOpenHelper {
 //                dbString += Float.toString(c.getFloat(c.getColumnIndex(COLUMN_TEMPERATURE)));
                 dbString += c.getString(c.getColumnIndex(COLUMN_TEMPERATURE));
                 dbString += "\n";
+                i++;
+                if (i == numDevices){
+                    dbString += "-------------------------\n";
+                    i = 0;
+                }
             }
             c.moveToNext();
         }

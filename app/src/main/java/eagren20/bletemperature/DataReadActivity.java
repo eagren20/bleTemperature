@@ -28,6 +28,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -54,6 +55,8 @@ public class DataReadActivity extends AppCompatActivity {
     private BluetoothDevice[] deviceArray;
     private DBHelper database;
     private TextView header;
+    private Button bottomButton;
+    private boolean reading;
 
     private static final float DEVICE_DISCONNECTED = -1.00f;
     private static final float DEVICE_CONNECTED = -2.00f;
@@ -70,6 +73,8 @@ public class DataReadActivity extends AppCompatActivity {
     private final static int SHIFT_LEFT_16BITS = 16;
     private final static int GET_BIT24 = 0x00400000;
     private final static int FIRST_BIT_MASK = 0x01;
+
+    public static final String EXTRAS_DATABASE_STRING = "DB_STRING";
 
     public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
     public final static UUID INTERMEDIATE_TEMP_UUID = UUID.fromString("00002A1E-0000-1000-8000-00805f9b34fb");
@@ -286,12 +291,9 @@ public class DataReadActivity extends AppCompatActivity {
 
         int size = addresses.size();
         deviceNames = new String[size];
-//        deviceNames[0] = "sensor_63";
-//        deviceNames[1] = "sensor_75";
+        deviceNames[0] = "sensor 63";
+        deviceNames[1] = "sensor 75";
 
-        //Register filter for bluetooth state changes
-        IntentFilter iFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
-        registerReceiver(mReceiver, iFilter);
 
         list = (ListView) findViewById(R.id.read_list);
         dataArray = new float[size];
@@ -315,11 +317,12 @@ public class DataReadActivity extends AppCompatActivity {
             return;
         }
 
+        bottomButton = (Button) findViewById(R.id.startButton);
+        reading = false;
         header = (TextView) findViewById(R.id.read_header);
         adapter = new ReadAdapter(this, R.layout.read_row, addresses);
         list.setAdapter(adapter);
         adapter.notifyDataSetChanged();
-        this.startConnection();
     }
 
     @Override
@@ -336,6 +339,10 @@ public class DataReadActivity extends AppCompatActivity {
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_data) {
             Intent intent = new Intent(this, DatabaseActivity.class);
+            Bundle bundle = new Bundle();
+            int numDevices = addresses.size();
+            bundle.putInt(EXTRAS_DATABASE_STRING, numDevices);
+            intent.putExtras(bundle);
             startActivity(intent);
             return true;
         }
@@ -363,10 +370,19 @@ public class DataReadActivity extends AppCompatActivity {
         super.onStop();
     }
 
+    @Override
+    protected void onResume() {
+        //Register filter for bluetooth state changes
+        IntentFilter iFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        registerReceiver(mReceiver, iFilter);
+        super.onResume();
+    }
+
     private void startConnection() {
         //initialize bluetoothgatts for each address
         //called once, when the activity starts
 
+        header.setText("Connecting to all devices...");
         for (String address : addresses){
             if (mBluetoothAdapter == null || address == null) {
                 Log.e(TAG, "BluetoothAdapter not initialized or unspecified address.");
@@ -400,24 +416,17 @@ public class DataReadActivity extends AppCompatActivity {
         Log.d(TAG, "Trying to create a new connection to address " + address);
     }
 
-    public void reconnect(View v){
+    public void buttonClick(View v){
 
-//        // Ensures Bluetooth is available on the device and it is enabled. If not,
-//        // displays a dialog requesting user permission to enable Bluetooth.
-//        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
-//            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-//            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-//        }
-//
-//        Toast.makeText(getApplicationContext(), "Reconnecting", Toast.LENGTH_SHORT).show();
-//        handler.removeCallbacksAndMessages(null);
-//
-//        for (BluetoothGatt gatt : gattArray){
-//            gatt.disconnect();
-//        }
-//        startConnection();
-
-        this.recreate();
+        if (!reading){
+            reading = true;
+            bottomButton.setText("Reconnect");
+            startConnection();
+        }
+        else {
+            reading = false;
+            this.recreate();
+        }
 
     }
 
@@ -531,9 +540,10 @@ public class DataReadActivity extends AppCompatActivity {
                 TextView nameView = (TextView) convertView.findViewById(R.id.read_device_name);
                 if (name == null){
                     nameView.setText("No Name");
+                    deviceNames[position] = "No Name";
                 }
                 else {
-                    nameView.setText("Name: " + name);
+                    nameView.setText(name);
                 }
             }
 

@@ -24,6 +24,9 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.ListViewCompat;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
@@ -58,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private static final long SCAN_PERIOD = 10000;
     private static final long POST_PERIOD = 1100;
 
+    public static final int NUM_DEVICES_UNKNOWN = -1;
     public static final String EXTRAS_CHECKED_ADDRESSES = "CHECKED_ADDRESSES";
     public static final String EXTRAS_DEVICE_NAMES = "DEVICE_NAMES";
     public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
@@ -112,6 +116,30 @@ public class MainActivity extends AppCompatActivity {
         scanner = mBluetoothAdapter.getBluetoothLeScanner();
 
         checkBT();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.read_menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_data) {
+            Intent intent = new Intent(this, DatabaseActivity.class);
+            Bundle bundle = new Bundle();;
+            bundle.putInt(DataReadActivity.EXTRAS_DATABASE_STRING, NUM_DEVICES_UNKNOWN);
+            intent.putExtras(bundle);
+            startActivity(intent);
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
