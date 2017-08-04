@@ -106,14 +106,14 @@ public class DataReadActivity extends AppCompatActivity {
                     Message msg = Message.obtain(handler);
                     msg.obj = DEVICE_DISCONNECTED;
                     msg.arg1 = index;
-                    msg.what = 1;
+                    msg.what = UPDATE_CONNECTION;
                     msg.sendToTarget();
 
                 } else {
                     Message msg = Message.obtain(handler);
                     msg.obj = DEVICE_CONNECTED;
                     msg.arg1 = index;
-                    msg.what = 1;
+                    msg.what = UPDATE_CONNECTION;
                     msg.sendToTarget();
 
 //                    gatt.discoverServices();
@@ -189,42 +189,16 @@ public class DataReadActivity extends AppCompatActivity {
             int index = addresses.indexOf(gatt.getDevice().getAddress());
                 Message msg = Message.obtain(handler);
                 msg.obj = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT,1);
-                msg.what = 0;
+                msg.what = UPDATE_DATA;
                 msg.arg1 = index;
                 msg.sendToTarget();
         }
 
-        /**
-         * Callback reporting the result of a descriptor read operation.
-         *
-         * @param gatt       GATT client invoked {@link BluetoothGatt#readDescriptor}
-         * @param descriptor Descriptor that was read from the associated
-         *                   remote device.
-         * @param status     {@link BluetoothGatt#GATT_SUCCESS} if the read operation
-         */
-        @Override
-        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            super.onDescriptorRead(gatt, descriptor, status);
-        }
-
-        /**
-         * Callback indicating the result of a descriptor write operation.
-         *
-         * @param gatt       GATT client invoked {@link BluetoothGatt#writeDescriptor}
-         * @param descriptor Descriptor that was writte to the associated
-         *                   remote device.
-         * @param status     The result of the write operation
-         *                   {@link BluetoothGatt#GATT_SUCCESS} if the operation succeeds.
-         */
-        @Override
-        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            super.onDescriptorWrite(gatt, descriptor, status);
-        }
     };
 
     // setup UI handler
     private final static int UPDATE_DATA = 0;
-    private final static int SEND_DATA= 1;
+    private final static int UPDATE_CONNECTION = 1;
     private Handler handler = new Handler() {
 
         @Override
@@ -234,7 +208,7 @@ public class DataReadActivity extends AppCompatActivity {
                 final float value = (float) msg.obj;
                 switch(what) {
                     case UPDATE_DATA: updateData(value, msg.arg1); break;
-                    case SEND_DATA: updateConnection(value, msg.arg1); break;
+                    case UPDATE_CONNECTION: updateConnection(value, msg.arg1); break;
                 }
             }
             else{

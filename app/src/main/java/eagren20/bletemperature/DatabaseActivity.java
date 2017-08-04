@@ -1,8 +1,10 @@
 package eagren20.bletemperature;
 
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.media.MediaScannerConnection;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PersistableBundle;
@@ -17,6 +19,9 @@ import android.widget.Toast;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * Created by eagre on 7/25/2017.
@@ -74,8 +79,9 @@ public class DatabaseActivity extends AppCompatActivity {
                 int rowcount = 0;
                 int colcount = 0;
 
-                File sdCardDir = Environment.getExternalStorageDirectory();
-                String filename = "TemperatureData.csv";
+                String mDir = Environment.DIRECTORY_DOCUMENTS;
+                File sdCardDir = Environment.getExternalStoragePublicDirectory(mDir);
+                String filename = generateFilename();
 
                 // the name of the file to export with
                 File saveFile = new File(sdCardDir, filename);
@@ -113,8 +119,9 @@ public class DatabaseActivity extends AppCompatActivity {
                         bw.newLine();
                     }
                     bw.flush();
+                    scanFile(this, saveFile, null);
                     Toast.makeText(getApplicationContext(), "Exported Successfully", Toast.LENGTH_SHORT).show();
-                    Toast.makeText(getApplicationContext(), "File Location: " + filename,
+                    Toast.makeText(getApplicationContext(), "File Location: Documents folder",
                             Toast.LENGTH_SHORT).show();
                 }
             } catch (Exception ex) {
@@ -140,5 +147,20 @@ public class DatabaseActivity extends AppCompatActivity {
         else{
             contents.setText(dbString);
         }
+    }
+
+    private void scanFile(Context ctxt, File f, String mimeType) {
+        MediaScannerConnection
+                .scanFile(ctxt, new String[] {f.getAbsolutePath()},
+                        new String[] {mimeType}, null);
+    }
+
+    private String generateFilename() {
+        String filename = "TemperatureData_";
+        Date curDate = new Date();
+        SimpleDateFormat format = new SimpleDateFormat("MM-dd-yy_HH꞉mm꞉ss");
+        String date = format.format(curDate);
+        filename+=date;
+        return filename;
     }
 }
