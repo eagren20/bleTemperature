@@ -14,11 +14,12 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class DBHelper extends SQLiteOpenHelper {
 
     public static final String DATABASE_NAME = "TemperatureData.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     public static final String TEMPERATURE_TABLE= "temperature";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_DEVICE = "device";
+    public static final String COLUMN_TIME = "time";
     public static final String COLUMN_TEMPERATURE = "temperature";
 
     /**
@@ -45,6 +46,7 @@ public class DBHelper extends SQLiteOpenHelper {
         db.execSQL(
                 "CREATE TABLE " + TEMPERATURE_TABLE +
                         "(" + COLUMN_ID + " INTEGER PRIMARY KEY, " +
+                        COLUMN_TIME + " TEXT, " +
                         COLUMN_DEVICE + " TEXT, " +
                         COLUMN_TEMPERATURE + " DECIMAL(3, 1))"
         );
@@ -80,6 +82,17 @@ public class DBHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
 
+        contentValues.put(COLUMN_DEVICE, device);
+        contentValues.put(COLUMN_TEMPERATURE, data);
+
+        db.insert(TEMPERATURE_TABLE, null, contentValues);
+    }
+
+    public void addDataRow(String device, float data, String time){
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+
+        contentValues.put(COLUMN_TIME, time);
         contentValues.put(COLUMN_DEVICE, device);
         contentValues.put(COLUMN_TEMPERATURE, data);
 
@@ -130,6 +143,8 @@ public class DBHelper extends SQLiteOpenHelper {
                 dbString += ": ";
 //                dbString += Float.toString(c.getFloat(c.getColumnIndex(COLUMN_TEMPERATURE)));
                 dbString += c.getString(c.getColumnIndex(COLUMN_TEMPERATURE));
+                dbString += " - ";
+                dbString += c.getString(c.getColumnIndex(COLUMN_TIME));
                 dbString += "\n";
                 i++;
                 if (i == numDevices){
@@ -141,6 +156,13 @@ public class DBHelper extends SQLiteOpenHelper {
         }
         db.close();
         return dbString;
+    }
+
+    public boolean isEmpty() {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor mCursor = db.rawQuery("SELECT * FROM " + TEMPERATURE_TABLE, null);
+        Boolean empty = (mCursor.getCount() == 0);
+        return empty;
     }
 }
 

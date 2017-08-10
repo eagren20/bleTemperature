@@ -13,6 +13,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Message;
 import android.support.annotation.LayoutRes;
@@ -35,7 +36,9 @@ import android.widget.Toast;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.UUID;
 
 public class DataReadActivity extends AppCompatActivity {
@@ -48,6 +51,7 @@ public class DataReadActivity extends AppCompatActivity {
     private ArrayList<String> addresses;
     private String[] deviceNames;
     private int[] servicesArray;
+    private int numDevices;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothManager mBluetoothManager;
     private float[] dataArray;
@@ -57,6 +61,9 @@ public class DataReadActivity extends AppCompatActivity {
     private TextView header;
     private Button bottomButton;
     private boolean reading;
+    private SharedPreferences sharedpreferences;
+    private SharedPreferences.Editor editor;
+
 
     private static final float DEVICE_DISCONNECTED = -1.00f;
     private static final float DEVICE_CONNECTED = -2.00f;
@@ -75,6 +82,8 @@ public class DataReadActivity extends AppCompatActivity {
     private final static int FIRST_BIT_MASK = 0x01;
 
     public static final String EXTRAS_DATABASE_STRING = "DB_STRING";
+    public static final String SP_numDevices = "SP_num";
+    public static final String PREFERNCES = "SP_preferences";
 
     public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
     public final static UUID INTERMEDIATE_TEMP_UUID = UUID.fromString("00002A1E-0000-1000-8000-00805f9b34fb");
@@ -186,7 +195,9 @@ public class DataReadActivity extends AppCompatActivity {
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             //super.onCharacteristicChanged(gatt, characteristic);
             //update UI with newly received data
+
             int index = addresses.indexOf(gatt.getDevice().getAddress());
+            Log.d(TAG, "oCC received, device " + Integer.toString(index));
                 Message msg = Message.obtain(handler);
                 msg.obj = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT,1);
                 msg.what = UPDATE_DATA;
@@ -221,8 +232,12 @@ public class DataReadActivity extends AppCompatActivity {
     private void updateData(float data, int index){
         dataArray[index] = data;
         adapter.notifyDataSetChanged();
+        Date curDate = new Date();
+        SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss:SS");
+        String time = format.format(curDate);
+        Log.d(TAG, "preparing to add row, device " + Integer.toString(index));
         // add data to DB
-        database.addDataRow(deviceNames[index], data);
+        database.addDataRow(deviceNames[index], data, time);
     }
 
     private void updateConnection(float connectionStatus, int index){
@@ -261,22 +276,30 @@ public class DataReadActivity extends AppCompatActivity {
         //test addresses
 //        addresses.add("A0:E6:F8:4C:2B:53");
         addresses.add("A0:E6:F8:4C:2B:63");
-        addresses.add("A0:E6:F8:53:DD:75"); //best
+        addresses.add("A0:E6:F8:53:DD:75");
 
-        int size = addresses.size();
-        deviceNames = new String[size];
+
+
+        numDevices = addresses.size();
+        deviceNames = new String[numDevices];
         deviceNames[0] = "sensor 63";
         deviceNames[1] = "sensor 75";
 
-
+        bottomButton = (Button) findViewById(R.id.startButton);
+        reading = false;
+        header = (TextView) findViewById(R.id.read_header);
         list = (ListView) findViewById(R.id.read_list);
-        dataArray = new float[size];
+
+        sharedpreferences = getSharedPreferences(PREFERNCES, Context.MODE_PRIVATE);
+        editor = sharedpreferences.edit();
+
+        dataArray = new float[numDevices];
         for (int i = 0; i < dataArray.length; i++){
             dataArray[i] = DEVICE_DISCONNECTED;
         }
-        gattArray = new BluetoothGatt[size];
-        deviceArray = new BluetoothDevice[size];
-        servicesArray = new int[size];
+        gattArray = new BluetoothGatt[numDevices];
+        deviceArray = new BluetoothDevice[numDevices];
+        servicesArray = new int[numDevices];
 //        semaphores = new Semaphore[addresses.size()];
 
         mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
@@ -291,9 +314,7 @@ public class DataReadActivity extends AppCompatActivity {
             return;
         }
 
-        bottomButton = (Button) findViewById(R.id.startButton);
-        reading = false;
-        header = (TextView) findViewById(R.id.read_header);
+
         adapter = new ReadAdapter(this, R.layout.read_row, addresses);
         list.setAdapter(adapter);
         adapter.notifyDataSetChanged();
@@ -316,6 +337,7 @@ public class DataReadActivity extends AppCompatActivity {
             Bundle bundle = new Bundle();
             int numDevices = addresses.size();
             bundle.putInt(EXTRAS_DATABASE_STRING, numDevices);
+            bundle.putStringArray(MainActivity.EXTRAS_DEVICE_NAMES, deviceNames);
             intent.putExtras(bundle);
             startActivity(intent);
             return true;
@@ -349,6 +371,7 @@ public class DataReadActivity extends AppCompatActivity {
         //Register filter for bluetooth state changes
         IntentFilter iFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         registerReceiver(mReceiver, iFilter);
+        checkNumDevices();
         super.onResume();
     }
 
@@ -478,7 +501,7 @@ public class DataReadActivity extends AppCompatActivity {
 
 
 
-    public void close(){
+    private void close(){
         for (BluetoothGatt gatt : gattArray){
             if (gatt == null) {
                 continue;
@@ -488,6 +511,32 @@ public class DataReadActivity extends AppCompatActivity {
             gatt = null;
             Log.d(TAG, "GATTs closed");
         }
+    }
+
+    private void checkNumDevices(){
+        int prev_numDevices = sharedpreferences.getInt(SP_numDevices, -1);
+        if (prev_numDevices == -1){
+
+        }
+        else{
+            //check to make sure that the db is clear if there is a
+            // different number of devices from last time
+            if (prev_numDevices != numDevices && !database.isEmpty()){
+                //database must be cleared before collecting data
+                header.setText("Attempting to read data from a different number of sensors: Must " +
+                        "clear database before continuing");
+                bottomButton.setEnabled(false);
+                list.setVisibility(View.GONE);
+
+            }
+            else{
+                header.setText("Devices:");
+                bottomButton.setEnabled(true);
+                list.setVisibility(View.VISIBLE);
+            }
+        }
+        editor.putInt(SP_numDevices, numDevices);
+        editor.commit();
     }
 
 

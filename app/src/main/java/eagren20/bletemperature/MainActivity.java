@@ -161,34 +161,34 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void scanClick(View view) {
-
-        if (!scanning) {
-            //start scan
-
-            checkBT();
-
-            device_list.clear();
-            adapter.newScan();
-            adapter.notifyDataSetChanged();
-            read_button.setVisibility(View.GONE);
-            noneFound.setVisibility(View.GONE);
-            progress.setVisibility(View.VISIBLE);
-
-            scan_button.setText("Stop");
-            scanLeDevice(true);
-
-        } else {
-            //stop the scan
-            Toast.makeText(getApplicationContext(), "Ending scan", Toast.LENGTH_SHORT).show();
-            scanLeDevice(false);
-        }
-    }
-
-//    public void scanClick(View view){
-//        Intent intent = new Intent(this, DataReadActivity.class);
-//        startActivity(intent);
+//    public void scanClick(View view) {
+//
+//        if (!scanning) {
+//            //start scan
+//
+//            checkBT();
+//
+//            device_list.clear();
+//            adapter.newScan();
+//            adapter.notifyDataSetChanged();
+//            read_button.setVisibility(View.GONE);
+//            noneFound.setVisibility(View.GONE);
+//            progress.setVisibility(View.VISIBLE);
+//
+//            scan_button.setText("Stop");
+//            scanLeDevice(true);
+//
+//        } else {
+//            //stop the scan
+//            Toast.makeText(getApplicationContext(), "Ending scan", Toast.LENGTH_SHORT).show();
+//            scanLeDevice(false);
+//        }
 //    }
+
+    public void scanClick(View view){
+        Intent intent = new Intent(this, DataReadActivity.class);
+        startActivity(intent);
+    }
 
     @Override
     protected void onResume() {
