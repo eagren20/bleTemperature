@@ -152,40 +152,6 @@ public class DataReadActivity extends AppCompatActivity {
         }
 
         /**
-         * Callback reporting the result of a characteristic read operation.
-         *
-         * @param gatt           GATT client invoked {@link BluetoothGatt#readCharacteristic}
-         * @param characteristic Characteristic that was read from the associated
-         *                       remote device.
-         * @param status         {@link BluetoothGatt#GATT_SUCCESS} if the read operation
-         */
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicRead(gatt, characteristic, status);
-        }
-
-        /**
-         * Callback indicating the result of a characteristic write operation.
-         * <p>
-         * <p>If this callback is invoked while a reliable write transaction is
-         * in progress, the value of the characteristic represents the value
-         * reported by the remote device. An application should compare this
-         * value to the desired value to be written. If the values don't match,
-         * the application must abort the reliable write transaction.
-         *
-         * @param gatt           GATT client invoked {@link BluetoothGatt#writeCharacteristic}
-         * @param characteristic Characteristic that was written to the associated
-         *                       remote device.
-         * @param status         The result of the write operation
-         *                       {@link BluetoothGatt#GATT_SUCCESS} if the operation succeeds.
-         */
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicWrite(gatt, characteristic, status);
-            //String address = gatt.getDevice().getAddress();
-        }
-
-        /**
          * Callback triggered as a result of a remote characteristic notification.
          *
          * @param gatt           GATT client the characteristic is associated with
@@ -198,13 +164,16 @@ public class DataReadActivity extends AppCompatActivity {
 
             int index = addresses.indexOf(gatt.getDevice().getAddress());
             Log.d(TAG, "oCC received, device " + Integer.toString(index));
+            Date curDate = new Date();
+            SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss:SS");
+            Reading reading = new Reading(characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT,1),
+                    format.format(curDate));
                 Message msg = Message.obtain(handler);
-                msg.obj = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT,1);
+                msg.obj = reading;
                 msg.what = UPDATE_DATA;
                 msg.arg1 = index;
                 msg.sendToTarget();
         }
-
     };
 
     // setup UI handler
@@ -215,11 +184,11 @@ public class DataReadActivity extends AppCompatActivity {
         @Override
         public void handleMessage(Message msg) {
             final int what = msg.what;
+
             if (msg.obj != null){
-                final float value = (float) msg.obj;
                 switch(what) {
-                    case UPDATE_DATA: updateData(value, msg.arg1); break;
-                    case UPDATE_CONNECTION: updateConnection(value, msg.arg1); break;
+                    case UPDATE_DATA: updateData(msg.obj, msg.arg1); break;
+                    case UPDATE_CONNECTION: updateConnection(msg.obj, msg.arg1); break;
                 }
             }
             else{
@@ -229,18 +198,21 @@ public class DataReadActivity extends AppCompatActivity {
         }
     };
 
-    private void updateData(float data, int index){
+    private void updateData(Object obj, int index){
+        final Reading reading = (Reading) obj;
+        float data = reading.getData();
+        String timestamp = reading.getTimestamp();
         dataArray[index] = data;
         adapter.notifyDataSetChanged();
-        Date curDate = new Date();
-        SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss:SS");
-        String time = format.format(curDate);
+
         Log.d(TAG, "preparing to add row, device " + Integer.toString(index));
-        // add data to DB
-        database.addDataRow(deviceNames[index], data, time);
+        // Add the new data to DB table. The index is added to the device name
+        // because it makes the names unique in the case of a duplicate
+        database.addDataRow(deviceNames[index], data, timestamp);
     }
 
-    private void updateConnection(float connectionStatus, int index){
+    private void updateConnection(Object obj, int index){
+        final float connectionStatus = (Float) obj;
         dataArray[index] = connectionStatus;
         adapter.notifyDataSetChanged();
     }
@@ -271,19 +243,19 @@ public class DataReadActivity extends AppCompatActivity {
 //        Bundle bundle = this.getIntent().getExtras();
 //        addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
 //        deviceNames = bundle.getStringArray(MainActivity.EXTRAS_DEVICE_NAMES);
-
-
         //test addresses
 //        addresses.add("A0:E6:F8:4C:2B:53");
         addresses.add("A0:E6:F8:4C:2B:63");
         addresses.add("A0:E6:F8:53:DD:75");
-
-
-
         numDevices = addresses.size();
+        //add the index to the device name as a unique identifier
+//        for (int i = 0; i < numDevices; i++){
+//            deviceNames[i] = deviceNames[i]+Integer.toString(i);
+//        }
+
         deviceNames = new String[numDevices];
-        deviceNames[0] = "sensor 63";
-        deviceNames[1] = "sensor 75";
+        deviceNames[0] = "sensor 631";
+        deviceNames[1] = "sensor 752";
 
         bottomButton = (Button) findViewById(R.id.startButton);
         reading = false;
@@ -539,6 +511,23 @@ public class DataReadActivity extends AppCompatActivity {
         editor.commit();
     }
 
+    private class Reading {
+        Float data;
+        String timestamp;
+
+        public Reading(Float data, String timestamp){
+            this.data = data;
+            this.timestamp = timestamp;
+        }
+
+        public Float getData() {
+            return data;
+        }
+
+        public String getTimestamp() {
+            return timestamp;
+        }
+    }
 
     private class ReadAdapter extends ArrayAdapter<String> {
 
@@ -559,7 +548,7 @@ public class DataReadActivity extends AppCompatActivity {
             if (convertView == null) {
                 LayoutInflater inflater = LayoutInflater.from(getContext());
                 convertView = inflater.inflate(resourceId, parent, false);
-                String name = deviceNames[position];
+                String name = DatabaseActivity.removeUID(deviceNames[position]);
                 TextView nameView = (TextView) convertView.findViewById(R.id.read_device_name);
                 if (name == null){
                     nameView.setText("No Name");

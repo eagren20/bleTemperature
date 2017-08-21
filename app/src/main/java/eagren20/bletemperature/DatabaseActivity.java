@@ -84,7 +84,7 @@ public class DatabaseActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "The database is empty", Toast.LENGTH_SHORT).show();
                 return super.onOptionsItemSelected(item);
             }
-            if (numDevices == -1){
+            if (numDevices == -1) {
                 Toast.makeText(getApplicationContext(), "Number of devices not found", Toast.LENGTH_SHORT).show();
                 return super.onOptionsItemSelected(item);
             }
@@ -110,90 +110,137 @@ public class DatabaseActivity extends AppCompatActivity {
                 rowcount = c.getCount();
                 colcount = c.getColumnCount();
 
-//                if (rowcount > 0) {
-//
-//                    c.moveToFirst();
-//                    for (int i = 0; i < colcount; i++) {
-//
-//                        if (i != colcount - 1) {
-//                            bw.write(c.getColumnName(i) + ",");
-//                        } else {
-//                            bw.write(c.getColumnName(i));
-//                        }
-//                    }
-//                    bw.newLine();
-//                    for (int i = 0; i < rowcount; i++) {
-//
-//                        c.moveToPosition(i);
-//
-//                        for (int j = 0; j < colcount; j++) {
-//
-//                            if (j != colcount - 1) {
-//                                bw.write(c.getString(j) + ",");
-//                            } else {
-//                                bw.write(c.getString(j));
-//                            }
-//                        }
-//                        bw.newLine();
-//                    }
+                if (rowcount > 0) {
 
-                    if (rowcount > 0) {
+                    c.moveToFirst();
 
-                        c.moveToFirst();;
-                        bw.write("Time,");
-                        if (deviceNames == null){
-                            for (int i = 0; i <numDevices; i++){
-                                if (i != numDevices - 1) {
-                                    bw.write(c.getString(2)+ ",");
-                                } else {
-                                    bw.write(c.getString(2));
-                                }
-                                c.moveToNext();
+                    bw.write("Time,");
+                    if (deviceNames == null) {
+                        deviceNames = new String[numDevices];
+                        for (int i = 0; i < numDevices; i++) {
+                            String curr = c.getString(2);
+                            deviceNames[i] = curr;
+                            if (i != numDevices - 1) {
+                                bw.write(removeUID(curr) + ",");
+                            } else {
+                                bw.write(removeUID(curr));
+                            }
+                            c.moveToNext();
+                        }
+                    }
+                    //TODO: for each set of readings put readings in array, then add
+                    else {
+                        for (int i = 0; i < numDevices; i++) {
+
+                            if (i != numDevices - 1) {
+                                bw.write(removeUID(deviceNames[i]) + ",");
+                            } else {
+                                bw.write(removeUID(deviceNames[i]));
                             }
                         }
-                        //TODO: for each set of readings put readings in array, then add
-                        else {
-                            for (int i = 0; i < numDevices; i++) {
 
-                                if (i != numDevices - 1) {
-                                    bw.write(deviceNames[i] + ",");
-                                } else {
-                                    bw.write(deviceNames[i]);
+                    }
+                    bw.newLine();
+                    c.moveToPosition(0);
+                    int i = 0;
+                    while (i < rowcount) {
+
+                        bw.write(c.getString(1) + ",");
+                        String[] dataArray = new String[numDevices];
+
+                        String[] nameArray = new String[numDevices];
+                        for (int j = 0; j < numDevices; j++) {
+                            //get current set of readings and names
+                            String name = c.getString(2);
+                            nameArray[j] = name;
+                            if (i < rowcount-1) {
+                                c.moveToNext();
+                            }
+                            else{
+                                break;
+                            }
+
+                        }
+                        c.moveToPosition(i);
+                        for (int j = 0; j < numDevices; j++) {
+                            //check for duplicates
+                            boolean duplicate = false;
+                            for (int x = 0; x < j; x++) {
+                                if (nameArray[x].equals(nameArray[j])){
+                                    duplicate = true;
+                                }
+                            }
+                            if (duplicate) {break;}
+                            String curr = c.getString(2);
+                            //store current cursor value in correct index of dataArray
+                            for (int x = 0; x < numDevices; x++) {
+                                if (deviceNames[x] != null) {
+                                    if (curr.equals(deviceNames[x])){
+                                        dataArray[x] = c.getString(3);
+                                        break;
+                                    }
+                                }
+                                else{
+                                    dataArray[x] = "";
                                 }
                             }
 
+                            if(i < rowcount-1) {
+                                c.moveToNext();
+                                i++;
+                            }
+                            else{
+                                i++;
+                            }
+                        }
+                        //write data to file
+                        for (int j = 0; j < numDevices; j++){
+                            String curr;
+                            if (dataArray[j] != null){
+                                curr = dataArray[j];
+                            }
+                            else{
+                                curr = "";
+                            }
+                            if (j != numDevices-1) {
+                                bw.write(curr +",");
+                            }
+                            else{
+                                bw.write(curr);
+                            }
                         }
                         bw.newLine();
-                        c.moveToPosition(0);
-                        for (int i = 0; i < rowcount; i++) {
 
-                            bw.write(c.getString(1)+",");
+                    }
 
-                            for (int j = 0; j < numDevices; j++){
-                                String string = c.getString(3);
-                                if (j != numDevices-1) {
-                                    bw.write(c.getString(3) + ",");
+                    //**************************
 
-                                } else {
-                                    bw.write(c.getString(3));
-
-                                }
-                                i++;
-                                c.moveToNext();
-                                if (c.isAfterLast()){
-                                    break;
-                                }
-                            }
-                            bw.newLine();
-                        }
-                    bw.flush();
-                    scanFile(this, saveFile, null);
-                    Toast.makeText(getApplicationContext(), "Exported Successfully", Toast.LENGTH_SHORT).show();
-                    Toast.makeText(getApplicationContext(), "File Location: Documents folder",
-                            Toast.LENGTH_SHORT).show();
+//                            for (int j = 0; j < numDevices; j++){
+//                                String string = c.getString(3);
+//                                if (j != numDevices-1) {
+//                                    bw.write(c.getString(3) + ",");
+//
+//                                } else {
+//                                    bw.write(c.getString(3));
+//
+//                                }
+//                                i++;
+//                                c.moveToNext();
+//                                if (c.isAfterLast()){
+//                                    break;
+//                                }
+//                            }
+//                            bw.newLine();
                 }
-            } catch (Exception ex) {
+                bw.flush();
+                scanFile(this, saveFile, null);
+                Toast.makeText(getApplicationContext(), "Exported Successfully", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "File Location: Documents folder",
+                        Toast.LENGTH_SHORT).show();
 
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
                 if (sqldb.isOpen()) {
                     sqldb.close();
                     Toast.makeText(getApplicationContext(), ex.getMessage().toString(),
@@ -231,5 +278,9 @@ public class DatabaseActivity extends AppCompatActivity {
         filename+=date;
         filename+=".csv";
         return filename;
+    }
+
+    public static String removeUID(String str) {
+        return str.substring(0, str.length() - 1);
     }
 }
