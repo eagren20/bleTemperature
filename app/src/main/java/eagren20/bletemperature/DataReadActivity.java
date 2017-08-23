@@ -244,9 +244,10 @@ public class DataReadActivity extends AppCompatActivity {
 //        addresses = bundle.getStringArrayList(MainActivity.EXTRAS_CHECKED_ADDRESSES);
 //        deviceNames = bundle.getStringArray(MainActivity.EXTRAS_DEVICE_NAMES);
         //test addresses
-//        addresses.add("A0:E6:F8:4C:2B:53");
+
         addresses.add("A0:E6:F8:4C:2B:63");
         addresses.add("A0:E6:F8:53:DD:75");
+//        addresses.add("A0:E6:F8:4C:2B:53");
         numDevices = addresses.size();
         //add the index to the device name as a unique identifier
 //        for (int i = 0; i < numDevices; i++){
@@ -256,6 +257,7 @@ public class DataReadActivity extends AppCompatActivity {
         deviceNames = new String[numDevices];
         deviceNames[0] = "sensor 631";
         deviceNames[1] = "sensor 752";
+//        deviceNames[2] = "sensor 533";
 
         bottomButton = (Button) findViewById(R.id.startButton);
         reading = false;
@@ -350,6 +352,9 @@ public class DataReadActivity extends AppCompatActivity {
     private void startConnection() {
         //initialize bluetoothgatts for each address
         //called once, when the activity starts
+
+        editor.putInt(SP_numDevices, numDevices);
+        editor.commit();
 
         header.setText("Connecting to all devices...");
         for (String address : addresses){
@@ -487,10 +492,7 @@ public class DataReadActivity extends AppCompatActivity {
 
     private void checkNumDevices(){
         int prev_numDevices = sharedpreferences.getInt(SP_numDevices, -1);
-        if (prev_numDevices == -1){
-
-        }
-        else{
+        if (prev_numDevices != -1){
             //check to make sure that the db is clear if there is a
             // different number of devices from last time
             if (prev_numDevices != numDevices && !database.isEmpty()){
@@ -507,8 +509,7 @@ public class DataReadActivity extends AppCompatActivity {
                 list.setVisibility(View.VISIBLE);
             }
         }
-        editor.putInt(SP_numDevices, numDevices);
-        editor.commit();
+
     }
 
     private class Reading {

@@ -115,6 +115,10 @@ public class DatabaseActivity extends AppCompatActivity {
                     c.moveToFirst();
 
                     bw.write("Time,");
+                    /**If devicenames is null the activity was spawned from mainactivity
+                    *and the array needs to be generated. A better way to day this may be
+                    *to use SharedPreferences to store the device names
+                    */
                     if (deviceNames == null) {
                         deviceNames = new String[numDevices];
                         for (int i = 0; i < numDevices; i++) {
@@ -149,12 +153,15 @@ public class DatabaseActivity extends AppCompatActivity {
                         String[] dataArray = new String[numDevices];
 
                         String[] nameArray = new String[numDevices];
+                        int temp = i;
                         for (int j = 0; j < numDevices; j++) {
                             //get current set of readings and names
                             String name = c.getString(2);
                             nameArray[j] = name;
-                            if (i < rowcount-1) {
+
+                            if (temp < rowcount-1) {
                                 c.moveToNext();
+                                temp++;
                             }
                             else{
                                 break;
@@ -166,8 +173,10 @@ public class DatabaseActivity extends AppCompatActivity {
                             //check for duplicates
                             boolean duplicate = false;
                             for (int x = 0; x < j; x++) {
-                                if (nameArray[x].equals(nameArray[j])){
-                                    duplicate = true;
+                                if (nameArray[x] != null && nameArray[j] != null) {
+                                    if (nameArray[x].equals(nameArray[j])) {
+                                        duplicate = true;
+                                    }
                                 }
                             }
                             if (duplicate) {break;}
@@ -250,6 +259,7 @@ public class DatabaseActivity extends AppCompatActivity {
 
             }
         }
+//        else if ()
         return super.onOptionsItemSelected(item);
     }
 
