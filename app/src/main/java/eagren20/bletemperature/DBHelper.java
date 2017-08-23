@@ -8,19 +8,22 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 /**
- * Created by eagre on 7/10/2017.
+ * Author: Erik Agren
+ * 7/10/2017
+ * Extension of SQLiteOpenHelper to implement a custom database for temperature readings
+ * One row for each individual reading
  */
 
-public class DBHelper extends SQLiteOpenHelper {
+class DBHelper extends SQLiteOpenHelper {
 
-    public static final String DATABASE_NAME = "TemperatureData.db";
+    private static final String DATABASE_NAME = "TemperatureData.db";
     private static final int DATABASE_VERSION = 2;
-
-    public static final String TEMPERATURE_TABLE= "temperature";
-    public static final String COLUMN_ID = "_id";
-    public static final String COLUMN_DEVICE = "device";
-    public static final String COLUMN_TIME = "time";
-    public static final String COLUMN_TEMPERATURE = "temperature";
+    //labels for table/column names
+    static final String TEMPERATURE_TABLE= "temperature";
+    private static final String COLUMN_ID = "_id";
+    private static final String COLUMN_DEVICE = "device";
+    private static final String COLUMN_TIME = "time";
+    private static final String COLUMN_TEMPERATURE = "temperature";
 
     /**
      * Create a helper object to create, open, and/or manage a database.
@@ -31,7 +34,7 @@ public class DBHelper extends SQLiteOpenHelper {
      * @param context to use to open or create the database
      */
 
-    public DBHelper(Context context) {
+    DBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
@@ -78,17 +81,13 @@ public class DBHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public void addDataRow(String device, float data){
-        SQLiteDatabase db = this.getWritableDatabase();
-        ContentValues contentValues = new ContentValues();
-
-        contentValues.put(COLUMN_DEVICE, device);
-        contentValues.put(COLUMN_TEMPERATURE, data);
-
-        db.insert(TEMPERATURE_TABLE, null, contentValues);
-    }
-
-    public void addDataRow(String device, float data, String time){
+    /**
+     * Adds a row of data to the DB table
+     * @param device the device name
+     * @param data the actual temperature data
+     * @param time the timestamp
+     */
+    void addDataRow(String device, float data, String time){
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
 
@@ -99,23 +98,11 @@ public class DBHelper extends SQLiteOpenHelper {
         db.insert(TEMPERATURE_TABLE, null, contentValues);
     }
 
-    public int numberOfRows() {
-        SQLiteDatabase db = this.getReadableDatabase();
-        int numRows = (int) DatabaseUtils.queryNumEntries(db, TEMPERATURE_TABLE);
-        return numRows;
-    }
-
-    public Cursor getRow(int id) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor res =  db.rawQuery("SELECT * FROM " + TEMPERATURE_TABLE + " WHERE " +
-                COLUMN_ID + "=?", new String[]{Integer.toString(id)});
-        return res;
-    }
 
     /**
      * Remove all users and groups from database.
      */
-    public void removeAll()
+    void removeAll()
     {
         // db.delete(String tableName, String whereClause, String[] whereArgs);
         // If whereClause is null, it will delete all rows.
@@ -123,7 +110,11 @@ public class DBHelper extends SQLiteOpenHelper {
         db.delete(TEMPERATURE_TABLE, null, null);
     }
 
-    public String databaseToString(int numDevices){
+    /**
+     * @param numDevices The number of devices
+     * @return A string representing the contents of the database
+     */
+    String databaseToString(int numDevices){
         String dbString = "";
         SQLiteDatabase db = getWritableDatabase();
         String query = "SELECT * FROM " + TEMPERATURE_TABLE+ " WHERE 1";// why not leave out the WHERE  clause?
@@ -141,7 +132,6 @@ public class DBHelper extends SQLiteOpenHelper {
                     c.getString(c.getColumnIndex(COLUMN_TEMPERATURE)) != null) {
                 dbString += DatabaseActivity.removeUID(c.getString(c.getColumnIndex(COLUMN_DEVICE)));
                 dbString += ": ";
-//                dbString += Float.toString(c.getFloat(c.getColumnIndex(COLUMN_TEMPERATURE)));
                 dbString += c.getString(c.getColumnIndex(COLUMN_TEMPERATURE));
                 dbString += " - ";
                 dbString += c.getString(c.getColumnIndex(COLUMN_TIME));
@@ -154,15 +144,36 @@ public class DBHelper extends SQLiteOpenHelper {
             }
             c.moveToNext();
         }
+        c.close();
         db.close();
         return dbString;
     }
 
-    public boolean isEmpty() {
+    /**
+     * Checks if the database is empty
+     * @return True if empty, false if not empty
+     */
+    boolean isEmpty() {
         SQLiteDatabase db = getReadableDatabase();
         Cursor mCursor = db.rawQuery("SELECT * FROM " + TEMPERATURE_TABLE, null);
         Boolean empty = (mCursor.getCount() == 0);
+        mCursor.close();
         return empty;
     }
+
+// Unused utilty methods
+
+//    public int numberOfRows() {
+//        SQLiteDatabase db = this.getReadableDatabase();
+//        return (int) DatabaseUtils.queryNumEntries(db, TEMPERATURE_TABLE);
+//    }
+//
+//    public Cursor getRow(int id) {
+//        SQLiteDatabase db = this.getReadableDatabase();
+//        Cursor res =  db.rawQuery("SELECT * FROM " + TEMPERATURE_TABLE + " WHERE " +
+//                COLUMN_ID + "=?", new String[]{Integer.toString(id)});
+//        return res;
+//    }
+
 }
 

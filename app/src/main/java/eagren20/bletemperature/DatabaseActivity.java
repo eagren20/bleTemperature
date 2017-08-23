@@ -1,14 +1,12 @@
 package eagren20.bletemperature;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.media.MediaScannerConnection;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.PersistableBundle;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
@@ -21,21 +19,30 @@ import android.widget.Toast;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Created by eagre on 7/25/2017.
+ * Author: Erik Agren
+ * 7/25/2017
+ * The activity that shows the database contents, as well as allows to delete or export the data
  */
 
 public class DatabaseActivity extends AppCompatActivity {
 
+    private static final String NUM_DEVICES_NOT_FOUND_MSG = "Number of devices not found: Please " +
+            "read again. Possible causes include clearing the cache";
+    private static final String DB_EMPTY_MSG = "Database is empty";
     private DBHelper database;
     private int numDevices;
+    //Main body textview. Where the database contents is shown
     private TextView contents;
+    //The header/title of the activity
     private TextView header;
     private String[] deviceNames;
+
+    //The row in the database that is currently being read from
+    private int currRow = 0;
 
 
     @Override
@@ -47,20 +54,18 @@ public class DatabaseActivity extends AppCompatActivity {
         header = (TextView) findViewById(R.id.db_header);
 
         database = new DBHelper(this);
-        //print db contents
+        //get the number of devices and device names
         SharedPreferences sharedpreferences = getSharedPreferences(DataReadActivity.PREFERNCES,
                 Context.MODE_PRIVATE);
         numDevices = sharedpreferences.getInt(DataReadActivity.SP_numDevices, -1);
         Bundle bundle = this.getIntent().getExtras();
         deviceNames = bundle.getStringArray(MainActivity.EXTRAS_DEVICE_NAMES);
-
         if (numDevices != -1) {
             printDB();
         }
         else{
             contents.setVisibility(View.GONE);
-            header.setText("Number of devices not found: Please read again. " +
-                    "Possible causes include clearing the cache");
+            header.setText(NUM_DEVICES_NOT_FOUND_MSG);
         }
     }
 
@@ -76,11 +81,12 @@ public class DatabaseActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.action_delete) {
             //delete all database entries
-
             database.removeAll();
             printDB();
         } else if (id == R.id.action_export) {
+            //export the data to a .csv file
             if (contents.getText().equals("")) {
+                //the DB is empty, so let the user know and do nothing
                 Toast.makeText(getApplicationContext(), "The database is empty", Toast.LENGTH_SHORT).show();
                 return super.onOptionsItemSelected(item);
             }
@@ -89,14 +95,16 @@ public class DatabaseActivity extends AppCompatActivity {
                 return super.onOptionsItemSelected(item);
             }
             SQLiteDatabase sqldb = database.getReadableDatabase();
+            //Used to read from the database
             Cursor c;
             try {
 
+                //SQL query that gets the entirety of the database
                 c = sqldb.rawQuery("select * from " + DBHelper.TEMPERATURE_TABLE, null);
 
                 int rowcount = 0;
-                int colcount = 0;
 
+                //Generate the file and its directory on the device
                 String mDir = Environment.DIRECTORY_DOCUMENTS;
                 File sdCardDir = Environment.getExternalStoragePublicDirectory(mDir);
                 String filename = generateFilename();
@@ -104,58 +112,52 @@ public class DatabaseActivity extends AppCompatActivity {
                 // the name of the file to export with
                 File saveFile = new File(sdCardDir, filename);
                 FileWriter fw = new FileWriter(saveFile);
-
-
+                // Used to write Strings to the .csv file
                 BufferedWriter bw = new BufferedWriter(fw);
                 rowcount = c.getCount();
-                colcount = c.getColumnCount();
+
+
 
                 if (rowcount > 0) {
-
                     c.moveToFirst();
 
+                    /*
+                     * .csv files have their columns seperated by commas and their rows seperated
+                     * by newline characters
+                     */
+
+                    //Write column headers of the .csv file
                     bw.write("Time,");
-                    /**If devicenames is null the activity was spawned from mainactivity
-                    *and the array needs to be generated. A better way to day this may be
-                    *to use SharedPreferences to store the device names
-                    */
-                    if (deviceNames == null) {
-                        deviceNames = new String[numDevices];
-                        for (int i = 0; i < numDevices; i++) {
-                            String curr = c.getString(2);
-                            deviceNames[i] = curr;
-                            if (i != numDevices - 1) {
-                                bw.write(removeUID(curr) + ",");
-                            } else {
-                                bw.write(removeUID(curr));
-                            }
-                            c.moveToNext();
-                        }
-                    }
-                    //TODO: for each set of readings put readings in array, then add
-                    else {
-                        for (int i = 0; i < numDevices; i++) {
-
-                            if (i != numDevices - 1) {
-                                bw.write(removeUID(deviceNames[i]) + ",");
-                            } else {
-                                bw.write(removeUID(deviceNames[i]));
-                            }
-                        }
-
-                    }
+                    writeColumnHeaders(c, bw);
                     bw.newLine();
+
+                    /*write data to .csv file*/
                     c.moveToPosition(0);
-                    int i = 0;
-                    while (i < rowcount) {
 
+                    //execute until all rows have been added to .csv file
+                    while (currRow < rowcount) {
+
+                        //write the time for the current row
                         bw.write(c.getString(1) + ",");
-                        String[] dataArray = new String[numDevices];
 
+                        /*
+                         * Used to order the data in the .csv file. Due to delays or other issues
+                         * in data reading, the order that devices are read from in any given set
+                         * of readings can be inconsistent. Therefore, it is necessary to order the
+                         * data in each set of readings before adding it to the .csv file.
+                         *
+                         * deviceNames contains the names in the order they appear in the .csv file,
+                         * while nameArray contains the names of the devices in the order of a
+                         * particular set of readings. For each index of nameArray, the correct
+                         * index is determined using deviceNames, and the corresponding data is
+                         * inserted to dataArray at that index. Once dataArray has finished being
+                         * generated (ordering is now correct), the row is added to the .csv file.
+                         */
                         String[] nameArray = new String[numDevices];
-                        int temp = i;
+
+                        int temp = currRow;
+                        //Read through the set of readings and store the deviceNames in nameArray
                         for (int j = 0; j < numDevices; j++) {
-                            //get current set of readings and names
                             String name = c.getString(2);
                             nameArray[j] = name;
 
@@ -166,107 +168,46 @@ public class DatabaseActivity extends AppCompatActivity {
                             else{
                                 break;
                             }
+                        }
+                        c.moveToPosition(currRow);
 
-                        }
-                        c.moveToPosition(i);
-                        for (int j = 0; j < numDevices; j++) {
-                            //check for duplicates
-                            boolean duplicate = false;
-                            for (int x = 0; x < j; x++) {
-                                if (nameArray[x] != null && nameArray[j] != null) {
-                                    if (nameArray[x].equals(nameArray[j])) {
-                                        duplicate = true;
-                                    }
-                                }
-                            }
-                            if (duplicate) {break;}
-                            String curr = c.getString(2);
-                            //store current cursor value in correct index of dataArray
-                            for (int x = 0; x < numDevices; x++) {
-                                if (deviceNames[x] != null) {
-                                    if (curr.equals(deviceNames[x])){
-                                        dataArray[x] = c.getString(3);
-                                        break;
-                                    }
-                                }
-                                else{
-                                    dataArray[x] = "";
-                                }
-                            }
+                        //For each reading, match the name of the device with the correct name in
+                        //nameArray to get the correct index of dataArray the data should be added to
+                        String[] dataArray = generateDataArray(nameArray, c, rowcount);
 
-                            if(i < rowcount-1) {
-                                c.moveToNext();
-                                i++;
-                            }
-                            else{
-                                i++;
-                            }
-                        }
-                        //write data to file
-                        for (int j = 0; j < numDevices; j++){
-                            String curr;
-                            if (dataArray[j] != null){
-                                curr = dataArray[j];
-                            }
-                            else{
-                                curr = "";
-                            }
-                            if (j != numDevices-1) {
-                                bw.write(curr +",");
-                            }
-                            else{
-                                bw.write(curr);
-                            }
-                        }
+                        //write ordered data to file
+                        writeDataRow(dataArray, bw);
+
                         bw.newLine();
-
                     }
-
-                    //**************************
-
-//                            for (int j = 0; j < numDevices; j++){
-//                                String string = c.getString(3);
-//                                if (j != numDevices-1) {
-//                                    bw.write(c.getString(3) + ",");
-//
-//                                } else {
-//                                    bw.write(c.getString(3));
-//
-//                                }
-//                                i++;
-//                                c.moveToNext();
-//                                if (c.isAfterLast()){
-//                                    break;
-//                                }
-//                            }
-//                            bw.newLine();
                 }
                 bw.flush();
+                //Scan for the newly created file so it will show up in file explorer
                 scanFile(this, saveFile, null);
                 Toast.makeText(getApplicationContext(), "Exported Successfully", Toast.LENGTH_SHORT).show();
                 Toast.makeText(getApplicationContext(), "File Location: Documents folder",
                         Toast.LENGTH_SHORT).show();
-
+                c.close();
 
             } catch (Exception ex) {
                 ex.printStackTrace();
                 if (sqldb.isOpen()) {
                     sqldb.close();
-                    Toast.makeText(getApplicationContext(), ex.getMessage().toString(),
+                    Toast.makeText(getApplicationContext(), ex.getMessage(),
                             Toast.LENGTH_SHORT).show();
                 }
-            } finally {
-
             }
         }
-//        else if ()
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Prints the contents of the database to the "contents" view
+     */
     private void printDB(){
         String dbString = database.databaseToString(numDevices);
         if (dbString.equals("")){
-            header.setText("Database is empty");
+            header.setText(DB_EMPTY_MSG);
             contents.setText("");
         }
         else{
@@ -274,12 +215,18 @@ public class DatabaseActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * This function causes the device to scan for a certain file/show that file in the directory
+     */
     private void scanFile(Context ctxt, File f, String mimeType) {
         MediaScannerConnection
                 .scanFile(ctxt, new String[] {f.getAbsolutePath()},
                         new String[] {mimeType}, null);
     }
 
+    /**
+     * Generates a unique filename based on the current DateTime
+     */
     private String generateFilename() {
         String filename = "TemperatureData_";
         Date curDate = new Date();
@@ -290,6 +237,121 @@ public class DatabaseActivity extends AppCompatActivity {
         return filename;
     }
 
+    /**
+     * Writes the column headers of the .csv file, i.e. "Time" and the the names of the devices
+     */
+    private void writeColumnHeaders(Cursor c, BufferedWriter bw){
+        try{
+            /*If devicenames is null the activity was spawned from mainactivity
+             and the array needs to be generated. A better way to day this may be
+             to use SharedPreferences to store the device names
+             */
+            if (deviceNames == null) {
+                deviceNames = new String[numDevices];
+                for (int i = 0; i < numDevices; i++) {
+                    String curr = c.getString(2);
+                    deviceNames[i] = curr;
+                    if (i != numDevices - 1) {
+                        bw.write(removeUID(curr) + ",");
+                    } else {
+                        bw.write(removeUID(curr));
+                    }
+                    c.moveToNext();
+                }
+            }
+            else {
+                for (int i = 0; i < numDevices; i++) {
+
+                    if (i != numDevices - 1) {
+                        bw.write(removeUID(deviceNames[i]) + ",");
+                    } else {
+                        bw.write(removeUID(deviceNames[i]));
+                    }
+                }
+
+            }
+        }
+        catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+    }
+
+    /**
+     * Create dataArray, the array that for every set of readings contains the data of those
+     * readings in the correct order
+     * @param nameArray The array of names in the order of the current set of readings
+     * @param rowcount The total number of rows in the database
+     * @return The completed array
+     */
+    private String[] generateDataArray(String[] nameArray, Cursor c, int rowcount){
+        String[] dataArray = new String[nameArray.length];
+        for (int j = 0; j < numDevices; j++) {
+            //check for duplicates. If a certain name already appeared in a set of
+            //readings, the current reading should actually be the beginning of the
+            //next row.
+            boolean duplicate = false;
+            for (int x = 0; x < j; x++) {
+                if (nameArray[x] != null && nameArray[j] != null) {
+                    if (nameArray[x].equals(nameArray[j])) {
+                        duplicate = true;
+                    }
+                }
+            }
+            if (duplicate) {break;}
+            String curr = c.getString(2);
+            //store current cursor value in correct index of dataArray
+            for (int x = 0; x < numDevices; x++) {
+                if (deviceNames[x] != null) {
+                    if (curr.equals(deviceNames[x])){
+                        dataArray[x] = c.getString(3);
+                        break;
+                    }
+                }
+                else{
+                    dataArray[x] = "";
+                }
+            }
+
+            if(currRow < rowcount-1) {
+                c.moveToNext();
+                currRow++;
+            }
+            else{
+                currRow++;
+            }
+        }
+        return dataArray;
+    }
+
+    /**
+     * Writes the completed dataArray to the .csv file
+     */
+    private void writeDataRow(String[] dataArray, BufferedWriter bw){
+        try {
+            for (int j = 0; j < numDevices; j++) {
+                String curr;
+                if (dataArray[j] != null) {
+                    curr = dataArray[j];
+                } else {
+                    curr = "";
+                }
+                if (j != numDevices - 1) {
+                    bw.write(curr + ",");
+                } else {
+                    bw.write(curr);
+                }
+            }
+        }
+        catch(Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     *
+     * Removes the unique identifier from a device name, returning it to how it originally was
+     */
     public static String removeUID(String str) {
         return str.substring(0, str.length() - 1);
     }

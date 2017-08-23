@@ -12,39 +12,42 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.TextView;
-
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.List;
+
 
 /**
- * Created by eagre on 6/5/2017.
+ * Author: Erik Agren
+ * 6/5/2017
+ * Custom array adapter from BLE_Devices
  */
 
-public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
+class DeviceAdapter extends ArrayAdapter<BLE_Device> {
 
 
-    ArrayList<BLE_Device> device_list;
-    ArrayList<String> addresses;
-    Context context;
-    int resourceId;
+    private ArrayList<BLE_Device> device_list;
+    private ArrayList<String> addresses;
+    private int resourceId;
 
-    public DeviceAdapter(@NonNull Context context, @LayoutRes int resource, @NonNull ArrayList<BLE_Device> objects) {
+    DeviceAdapter(@NonNull Context context, @LayoutRes int resource, @NonNull ArrayList<BLE_Device> objects) {
         super(context, resource, objects);
-        this.context = context;
         resourceId = resource;
         device_list = objects;
         addresses = new ArrayList<>();
     }
 
-    public void addDevice(BluetoothDevice device, int rssi){
+    /**
+     * Adds a device to the listview
+     */
+    void addDevice(BluetoothDevice device, int rssi){
         BLE_Device new_device = new BLE_Device(device, rssi);
         String address = new_device.getAddress();
         if(!addresses.contains(address)) {
+            //if not currently in the list of addresses, add it
             device_list.add(new_device);
             addresses.add(address);
         }
         else{
+            //if it already exists, update the rssi
             device_list.get(addresses.indexOf(address)).setRSSI(rssi);
         }
     }
@@ -82,20 +85,23 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
             addressView.setText("Unknown Address");
         }
 
-//        if (rssi < -80){
-//            rssiView.setText("Signal strength: Poor");
-//        }
-//        else if (rssi < -67){
-//            rssiView.setText("Signal strength: Good");
-//        }
-//        else{
-//            rssiView.setText("Signal strength: Excellent");
-//        }
+        //custom text messages rather than using raw rssi number, which is harder to understand
+        if (rssi < -80){
+            rssiView.setText("Signal strength: Poor");
+        }
+        else if (rssi < -67){
+            rssiView.setText("Signal strength: Good");
+        }
+        else{
+            rssiView.setText("Signal strength: Excellent");
+        }
 
-        rssiView.setText(Integer.toString(rssi));
+//        rssiView.setText(Integer.toString(rssi));
+
 
         CheckBox checkbox = (CheckBox) convertView.findViewById(R.id.checkBox);
         final int new_position = position;
+        //Called if checkbox is checked/unckeched
         checkbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 
             @Override
@@ -109,13 +115,19 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
 
     }
 
-    public void newScan(){
+    /**
+     * Clears the addresses and device list for a new scan
+     */
+    void newScan(){
 
         addresses.clear();
         device_list.clear();
     }
 
-    public int getNumberChecked(){
+    /**
+     * Gets the number of checked devices
+     */
+    int getNumberChecked(){
         int numChecked = 0;
         for (BLE_Device device: device_list){
             if (device.isChecked()){
@@ -125,7 +137,10 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
         return numChecked;
     }
 
-    public ArrayList<String> getCheckedAddresses(){
+    /**
+     * Gets an arraylist of the addresses of all the currently checked devices
+     */
+    ArrayList<String> getCheckedAddresses(){
         ArrayList<String> checked_addresses = new ArrayList<>();
         for (BLE_Device device: device_list){
             if (device.isChecked()){
@@ -135,7 +150,10 @@ public class DeviceAdapter extends ArrayAdapter<BLE_Device> {
         return checked_addresses;
     }
 
-    public String[] getCheckedNames(){
+    /**
+     * Gets the names of all the currently checked devices
+     */
+    String[] getCheckedNames(){
         String[] checked_names = new String[device_list.size()];
         for (BLE_Device device : device_list){
             if (device.isChecked()){

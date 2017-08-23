@@ -36,6 +36,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Author: Erik Agren
+ * 06/2017
+ * Activity that shows when the app is first opened
+ */
+
 public class MainActivity extends AppCompatActivity {
 
 
@@ -46,7 +52,6 @@ public class MainActivity extends AppCompatActivity {
     //Views in the main activity
     private Button scan_button;
     private Button read_button;
-    private ListView list;
     private TextView noneFound;
     private ProgressBar progress;
     //Bluetooth scan parameters
@@ -54,11 +59,11 @@ public class MainActivity extends AppCompatActivity {
     private ScanSettings settings;
     //Used for bluetooth related functions
     private BluetoothAdapter btAdapter;
-    private BluetoothLeScanner btScanner;
+//    private BluetoothLeScanner btScanner;
 
     private Handler mHandler;
+    // True if currently scanning
     private boolean scanning;
-    private boolean btEnable;
 
     //The length of the scanning periods
     private static final long SCAN_PERIOD = 10000;
@@ -69,6 +74,8 @@ public class MainActivity extends AppCompatActivity {
     public static final int NUM_DEVICES_UNKNOWN = -1;
 
     //String constants
+    private static final String SCAN_STOP_MSG = "Stop";
+    private static final String SCAN_START_MSG = "Scan";
     public static final String EXTRAS_CHECKED_ADDRESSES = "CHECKED_ADDRESSES";
     public static final String EXTRAS_DEVICE_NAMES = "DEVICE_NAMES";
     public final static UUID HT_SERVICE_UUID = UUID.fromString("00001809-0000-1000-8000-00805f9b34fb");
@@ -83,11 +90,10 @@ public class MainActivity extends AppCompatActivity {
 
         //Initialize variables
         device_list = new ArrayList<>();
-        list = (ListView) findViewById(R.id.device_list);
+        ListView list = (ListView) findViewById(R.id.device_list);
         adapter = new DeviceAdapter(this, R.layout.scan_row, device_list);
         list.setAdapter(adapter);
         scanning = false;
-        btEnable = false;
         mHandler = new Handler();
         scan_button = (Button) findViewById(R.id.scan_button);
         read_button = (Button) findViewById(R.id.read_button);
@@ -96,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
         progress.setIndeterminate(true);
 
         //Initialize scan settings
-        filterList = new ArrayList<ScanFilter>();
+        filterList = new ArrayList<>();
         ScanFilter filter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(HT_SERVICE_UUID)).build();
         filterList.add(filter);
         settings = new ScanSettings.Builder().setScanMode(
@@ -122,10 +128,8 @@ public class MainActivity extends AppCompatActivity {
         // Initializes Bluetooth adapter.
         final BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-            btAdapter = bluetoothManager.getAdapter();
-        btScanner = btAdapter.getBluetoothLeScanner();
-
-        checkBT();
+        btAdapter = bluetoothManager.getAdapter();
+//        btScanner = btAdapter.getBluetoothLeScanner();
     }
     /**
      * Initialize the contents of the Activity's standard options menu.
@@ -137,6 +141,7 @@ public class MainActivity extends AppCompatActivity {
      */
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+        //Make the activity's menu "read_menu.xml"
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.read_menu, menu);
         return super.onCreateOptionsMenu(menu);
@@ -158,17 +163,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_data) {
+            //Data menu option was selected. Start a new DatabaseActivity
             Intent intent = new Intent(this, DatabaseActivity.class);
-            Bundle bundle = new Bundle();;
+            Bundle bundle = new Bundle();
             bundle.putInt(DataReadActivity.EXTRAS_DATABASE_STRING, NUM_DEVICES_UNKNOWN);
             intent.putExtras(bundle);
             startActivity(intent);
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -179,7 +182,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         // User chose not to enable Bluetooth.
         if (requestCode == REQUEST_ENABLE_BT && resultCode == Activity.RESULT_CANCELED) {
-            finish();
+            //prompt them to enable it again
+            checkBT();
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
@@ -190,60 +194,60 @@ public class MainActivity extends AppCompatActivity {
      * displays a dialog requesting user permission to enable Bluetooth.
      */
     public void checkBT(){
-        //
         if (btAdapter == null || !btAdapter.isEnabled()) {
+            //Start a new activity that prompts the user to enable bluetooth
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
     }
 
     /**
-     * Called when the "Scan" button is clicked. Checks that bluetooth is enabled and 
-     * @param view
+     * Called when the "Scan" button is clicked. Checks that bluetooth is enabled
+     * and begins scanning
+     * @param view The calling view
      */
-//    public void scanClick(View view) {
-//
-//        if (!scanning) {
-//            //start scan
-//
-//            checkBT();
-//
-//            device_list.clear();
-//            adapter.newScan();
-//            adapter.notifyDataSetChanged();
-//            read_button.setVisibility(View.GONE);
-//            noneFound.setVisibility(View.GONE);
-//            progress.setVisibility(View.VISIBLE);
-//
-//            scan_button.setText("Stop");
-//            scanLeDevice(true);
-//
-//        } else {
-//            //stop the scan
-//            Toast.makeText(getApplicationContext(), "Ending scan", Toast.LENGTH_SHORT).show();
-//            scanLeDevice(false);
-//        }
+    public void scanClick(View view) {
+        if (!scanning) {
+            //start the scan
+            checkBT();
+            //Clear the device list/listview and make appropriate changes to the views
+            device_list.clear();
+            adapter.newScan();
+            adapter.notifyDataSetChanged();
+            read_button.setVisibility(View.GONE);
+            noneFound.setVisibility(View.GONE);
+            progress.setVisibility(View.VISIBLE);
+            scan_button.setText(SCAN_STOP_MSG);
+
+            scanLeDevice(true);
+        } else {
+            //stop the scan
+            Toast.makeText(getApplicationContext(), "Ending scan", Toast.LENGTH_SHORT).show();
+            scanLeDevice(false);
+        }
+    }
+// Used for testing on kindle fire (when bluetooth scanning doesn't work properly)
+//    public void scanClick(View view){
+//        Intent intent = new Intent(this, DataReadActivity.class);
+//        startActivity(intent);
 //    }
 
-    public void scanClick(View view){
-        Intent intent = new Intent(this, DataReadActivity.class);
-        startActivity(intent);
-    }
-
+    /**
+     * Called when the activity resumes and when it is created
+     */
     @Override
     protected void onResume() {
         super.onResume();
 
         checkBT();
 
-        btScanner = btAdapter.getBluetoothLeScanner();
+//        btScanner = btAdapter.getBluetoothLeScanner();
         progress.setVisibility(View.GONE);
         scan_button.setEnabled(true);
         read_button.setEnabled(true);
 
-        scan_button.setText("Scan");
+        scan_button.setText(SCAN_START_MSG);
         scanning = false;
-        btEnable = false;
         //Register filter for bluetooth state changes
         IntentFilter iFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         registerReceiver(mReceiver, iFilter);
@@ -255,33 +259,37 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(mReceiver);
     }
 
+    /**
+     * Begins scanning with custom scan settings
+     * @param enable True if you want to begin scanning, and false if you want to stop scanning
+     */
     private void scanLeDevice(final boolean enable) {
         if (enable) {
-            // Stops scanning after a pre-defined scan period.
-
+            // Stops scanning after a pre-defined scan period. The runnable will be called after
+            // SCAN_PERIOD seconds
             mHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     scanning = false;
                     btAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
-//                    btAdapter.stopLeScan(mLeScanCallback);
                     stopScan();
                 }
             }, SCAN_PERIOD);
+
             scanning = true;
-
             btAdapter.getBluetoothLeScanner().startScan(filterList, settings, mLeScanCallback);
-//            btAdapter.startLeScan(mLeScanCallback);
-
         } else {
             scanning = false;
             btAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
-//            btAdapter.stopLeScan(mLeScanCallback);
             this.stopScan();
         }
-
     }
 
+    /**
+     * Use this version of scanLeDevice() if you want to scan in short segments rather than
+     * continuously for the entire scanning period. Some sources suggested that starting and
+     * restarting the scans helped fix scanning issues on some devices
+     */
 //    private void scanLeDevice(final boolean enable) {
 //        if (enable) {
 //            scanning = true;
@@ -303,23 +311,29 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //    }
 
-    private void scanPost(){
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (btAdapter != null && btAdapter.isEnabled()) {
-                    btScanner.stopScan(mLeScanCallback);
-//                btAdapter.stopLeScan(mLeScanCallback);
-                    btScanner.startScan(filterList, settings, mLeScanCallback);
-//                btAdapter.startLeScan(mLeScanCallback);
-                    scanPost();
-                }
+    /**
+     * Used to start and restart scans if using the alternate scanLeDevice method
+     */
+//    private void scanPost(){
+//        mHandler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                if (btAdapter != null && btAdapter.isEnabled()) {
+//                    btScanner.stopScan(mLeScanCallback);
+////                btAdapter.stopLeScan(mLeScanCallback);
+//                    btScanner.startScan(filterList, settings, mLeScanCallback);
+////                btAdapter.startLeScan(mLeScanCallback);
+//                    scanPost();
+//                }
+//
+//            }
+//        }, POST_PERIOD);
+//
+//    }
 
-            }
-        }, POST_PERIOD);
-
-    }
-
+    /**
+     * Called when scanning stops; makes corresponding changes to certain views in the activity
+     */
     private void stopScan() {
         if (device_list.isEmpty()) {
             noneFound.setVisibility(View.VISIBLE);
@@ -327,7 +341,7 @@ public class MainActivity extends AppCompatActivity {
             read_button.setVisibility(View.VISIBLE);
         }
         progress.setVisibility(View.GONE);
-        scan_button.setText("Scan");
+        scan_button.setText(SCAN_START_MSG);
 
     }
 
@@ -336,18 +350,17 @@ public class MainActivity extends AppCompatActivity {
      * @param view the calling view
      */
     public void readClick(View view){
-
         //get the number of checked sensors
         int numChecked = adapter.getNumberChecked();
-
         //if no sensors have been checked, inform the user
         if (numChecked == 0){
-            //toast
             Toast.makeText(this, "No sensors have been selected", Toast.LENGTH_SHORT).show();
         }
         else{
+            //Begin the DataReadActivity
             Intent intent = new Intent(this, DataReadActivity.class);
             Bundle bundle = new Bundle();
+            //Create bundle with the checked device names and addresses
             bundle.putStringArrayList(EXTRAS_CHECKED_ADDRESSES, adapter.getCheckedAddresses());
             bundle.putStringArray(EXTRAS_DEVICE_NAMES, adapter.getCheckedNames());
 
@@ -356,29 +369,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-
-//    private BluetoothAdapter.LeScanCallback mLeScanCallback =
-//            new BluetoothAdapter.LeScanCallback() {
-//                @Override
-//                public void onLeScan(final BluetoothDevice device, int rssi,
-//                                     byte[] scanRecord) {
-//                    final int new_rssi = rssi;
-//                    runOnUiThread(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            // add to view
-//                            //TODO: add in check in UUIDs to make sure only temperature sensors are added
-//
-//                            if (new_rssi > -90) {
-//                                adapter.addDevice(device, new_rssi);
-//                                adapter.notifyDataSetChanged();
-//                            }
-//                        }
-//                    });
-//                }
-//            };
-
+    /**
+     * Callback for BLE scanning. Updates the device name and RSSI value in the device listview
+     */
     private ScanCallback mLeScanCallback =
             new ScanCallback() {
                 @Override
@@ -388,9 +381,7 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            // add to view
-                            //TODO: add in check in UUIDs to make sure only temperature sensors are added
-
+                            // add to listview
                             if (new_rssi > -90) {
                                 adapter.addDevice(new_device, new_rssi);
                                 adapter.notifyDataSetChanged();
@@ -399,12 +390,14 @@ public class MainActivity extends AppCompatActivity {
                     });
                 }
             };
-
+    /**
+     * Broadcast receiver for changes to the device's bluetooth. Essentially, detects if bluetooth
+     * is turned on/off and takes corresponding actions
+     */
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            //TODO: fix this garbo
             if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
                 final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
                         BluetoothAdapter.ERROR);
@@ -414,8 +407,7 @@ public class MainActivity extends AppCompatActivity {
                     scan_button.setEnabled(false);
                     read_button.setEnabled(false);
                 }
-                if (state == BluetoothAdapter.STATE_OFF && !btEnable){
-                    btEnable = true;
+                if (state == BluetoothAdapter.STATE_OFF){
                     Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
                 }
@@ -426,10 +418,7 @@ public class MainActivity extends AppCompatActivity {
                         scanLeDevice(true);
                     }
                 }
-
             }
         }
     };
-
-
 }

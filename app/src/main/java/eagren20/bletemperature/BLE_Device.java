@@ -3,22 +3,28 @@ package eagren20.bletemperature;
 import android.bluetooth.BluetoothDevice;
 
 /**
- * Created by eagre on 6/7/2017.
+ * Author: Erik Agren
+ * 6/7/2017
+ * Object representing a scanned device and its properties
  */
 
-public class BLE_Device {
+class BLE_Device {
+
 
     private BluetoothDevice device;
+    //signal strength
     private int rssi;
+    //whether or not the device was checked
     private boolean checked;
 
-    public BLE_Device(BluetoothDevice device, int rssi) {
+    BLE_Device(BluetoothDevice device, int rssi) {
         this.device = device;
         this.rssi = rssi;
         checked = false;
     }
 
-    public String getAddress() {
+    //Various getters and setters
+    String getAddress() {
         return device.getAddress();
     }
 
@@ -26,19 +32,19 @@ public class BLE_Device {
         return device.getName();
     }
 
-    public void setRSSI(int rssi) {
+    void setRSSI(int rssi) {
         this.rssi = rssi;
     }
 
-    public int getRSSI() {
+    int getRSSI() {
         return rssi;
     }
 
-    public boolean isChecked() {
+    boolean isChecked() {
         return checked;
     }
 
-    public void setChecked(boolean new_value) {
+    void setChecked(boolean new_value) {
             this.checked = new_value;
     }
 }
